@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>系统配置 - 小贷管理后台 Demo</title>
+<link rel="stylesheet" href="assets/app.css"/>
+</head>
+<body>
+<header>
+  <h1>小贷管理后台 Demo</h1>
+  <span class="pill">系统配置</span>
+</header>
+<div class="layout">
+  <aside>
+    <div class="brand">导航</div>
+    <nav>
+      <a href="dashboard.html">🏠 首页</a>
+      <a href="reports.html">📊 报表中心</a>
+      <a href="employees.html">👤 员工管理</a>
+      <a href="customers.html">👥 客户管理</a>
+      <a href="loans.html">💳 放款管理</a>
+      <a href="repayments.html">💸 还款管理</a>
+      <a href="overdue.html">⏰ 逾期管理</a>
+      <a href="integrations.html">🔌 三方配置</a>
+      <a href="settings.html" class="active">⚙️ 系统配置</a>
+      <a href="autopay-logs.html">🏦 扣款记录</a>
+      <a href="sms-logs.html">✉️ 短信记录</a>
+      <a href="wecom-logs.html">💬 企微通知</a>
+      <a href="notifications.html">🔔 通知中心</a>
+      <a href="wecom.html">🤝 企微客户库</a>
+    </nav>
+  </aside>
+  <main>
+    <section id="settings" class="section-card">
+      <div class="section-header">
+        <h3>临期提醒配置</h3>
+        <span class="pill">更新后实时生效</span>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>临期天数阈值</label>
+          <input id="cfg_days" type="number" class="input" min="1" max="30" step="1">
+          <span class="help">距离应还日期小于等于该天数视为临期</span>
+        </div>
+        <div class="form-group">
+          <label>临期提醒频率（次/天）</label>
+          <input id="cfg_freq" type="number" class="input" min="1" max="10" step="1">
+          <span class="help">同一客户每日发送提醒的次数，用于控制触达频率</span>
+        </div>
+      </div>
+    <div style="margin-top:16px;display:flex;gap:10px;">
+      <button class="btn ok" onclick="saveSettings()">保存配置</button>
+      <button class="btn" onclick="resetSettings()">恢复默认</button>
+    </div>
+      <div class="card" style="margin-top:20px;">
+        <h3>提醒效果预览</h3>
+        <p id="cfg_summary">统计中...</p>
+        <p id="cfg_example" class="help">示例提醒计划将在输入变化后自动更新</p>
+      </div>
+  </section>
+  </main>
+</div>
+<dialog id="dlg"><div class="d-hd" id="dlg_title">对话框</div>
+  <form method="dialog" class="d-bd" id="dlg_body"></form>
+  <div class="d-ft"><button type="button" class="btn" onclick="closeDlg()">取消</button><button id="dlg_ok" class="btn ok">确定</button></div>
+</dialog>
+<script src="assets/app.js"></script>
+</body>
+</html>

@@ -35,4 +35,24 @@ return [
         ],
     ],
 
+    'tencent_sms' => [
+        'enabled'      => env('TENCENT_SMS_ENABLED', false),
+        'secret_id'    => env('TENCENT_SMS_SECRET_ID'),
+        'secret_key'   => env('TENCENT_SMS_SECRET_KEY'),
+        'app_id'       => env('TENCENT_SMS_APP_ID'),
+        'sign'         => env('TENCENT_SMS_SIGN'),
+        'template_id'  => env('TENCENT_SMS_TEMPLATE_ID'),
+        'region'       => env('TENCENT_SMS_REGION', 'ap-guangzhou'),
+        'reminder_tpl' => env('TENCENT_SMS_REMINDER_TEMPLATE_ID'),
+    ],
+
+    'wecom' => [
+        'enabled'        => env('WECOM_ENABLED', false),
+        'corp_id'        => env('WECOM_CORP_ID'),
+        'app_secret'     => env('WECOM_APP_SECRET'),
+        'agent_id'       => env('WECOM_AGENT_ID'),
+        'sender_user_id' => env('WECOM_SENDER_USER_ID'),
+        'cache_ttl'      => env('WECOM_TOKEN_CACHE_SECONDS', 5400),
+    ],
+
 ];

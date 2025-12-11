@@ -1,5 +1,9 @@
 <?php
 
+use App\Admin\Controllers\CollateralController;
+use App\Admin\Controllers\CustomerController;
+use App\Admin\Controllers\LoanController;
+use App\Admin\Controllers\RepaymentScheduleController;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Route;
 
@@ -10,6 +14,41 @@ Route::group([
     'prefix'     => config('admin.route.prefix'),
     'middleware' => config('admin.route.middleware'),
 ], function (Router $router) {
-    $router->resource('dashboard', \App\Admin\Controllers\HomeController::class);
+    $router->resource('dashboard', \App\Admin\Controllers\DashboardController::class);
+    $router->resource('reports', \App\Admin\Controllers\ReportsController::class);
+    $router->resource('employees', \App\Admin\Controllers\EmployeeController::class);
     $router->resource('system/settings', \App\Admin\Controllers\SettingController::class);
+    $router->resource('customers', CustomerController::class);
+    $router->resource('collaterals', CollateralController::class);
+    $router->resource('loans', LoanController::class);
+    $router->resource('repayment-schedules', RepaymentScheduleController::class);
+    $router->resource('overdue', \App\Admin\Controllers\OverdueController::class);
+
+    $router->get('collaterals_options/{collateral_id}', [CollateralController::class, 'options']);
+    $router->get('customer_options', [CustomerController::class, 'options']);
+    $router->post('repayment-schedules/{id}/mark-paid', [RepaymentScheduleController::class, 'markPaid']);
+    $router->get('repayment-schedules/stats/{loanId}', [RepaymentScheduleController::class, 'repaymentStats']);
+    $router->post('repayment-schedules/regenerate/{loanId}', [RepaymentScheduleController::class, 'regenerate']);
+    
+    // Dashboard API路由
+    $router->get('dashboard/metrics', [\App\Admin\Controllers\DashboardController::class, 'metrics']);
+    $router->get('dashboard/risk-top', [\App\Admin\Controllers\DashboardController::class, 'riskTop']);
+    $router->get('dashboard/channel-stats', [\App\Admin\Controllers\DashboardController::class, 'channelStats']);
+    $router->get('dashboard/export', [\App\Admin\Controllers\DashboardController::class, 'export']);
+    
+    // 逾期管理API路由
+    $router->post('overdue/bulk-sms', [\App\Admin\Controllers\OverdueController::class, 'bulkSMS']);
+    $router->post('overdue/{id}/mark-paid', [\App\Admin\Controllers\OverdueController::class, 'markAsPaid']);
+    
+    // 报表中心API路由
+    $router->get('reports/cashflow', [\App\Admin\Controllers\ReportsController::class, 'cashflow']);
+    $router->get('reports/risk', [\App\Admin\Controllers\ReportsController::class, 'risk']);
+    $router->get('reports/net-change', [\App\Admin\Controllers\ReportsController::class, 'netChange']);
+    $router->get('reports/channel', [\App\Admin\Controllers\ReportsController::class, 'channel']);
+    $router->get('reports/asset-quality', [\App\Admin\Controllers\ReportsController::class, 'assetQuality']);
+    $router->get('reports/cohort', [\App\Admin\Controllers\ReportsController::class, 'cohort']);
+    $router->get('reports/funnel', [\App\Admin\Controllers\ReportsController::class, 'funnel']);
+    $router->get('reports/vintage', [\App\Admin\Controllers\ReportsController::class, 'vintage']);
+    $router->get('reports/export/excel', [\App\Admin\Controllers\ReportsController::class, 'exportExcel']);
+    $router->get('reports/export/pdf', [\App\Admin\Controllers\ReportsController::class, 'exportPDF']);
 });
