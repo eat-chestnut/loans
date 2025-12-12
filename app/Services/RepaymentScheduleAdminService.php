@@ -16,4 +16,12 @@ class RepaymentScheduleAdminService extends AdminService
     {
         $query->with(['loan', 'loan.customer']);
     }
+
+    public function searchable($query)
+    {
+        parent::searchable($query);
+        $query->when($this->request->get('max_due_date'), function ($query, $date) {
+            $query->whereDate('due_date', '<=', $date);
+        });
+    }
 }

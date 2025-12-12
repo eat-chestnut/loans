@@ -15,6 +15,11 @@ class CustomerService extends AdminService
 {
 	protected string $modelName = Customer::class;
 
+    public function addRelations($query, string $scene = 'list')
+    {
+        $query->with(['wecomContact', 'loans.repaymentSchedules', 'collaterals', 'communications.adminUser', 'communications.loan']);
+    }
+
     public function options()
     {
         return self::make()

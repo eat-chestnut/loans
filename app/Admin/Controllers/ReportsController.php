@@ -3,13 +3,11 @@
 namespace App\Admin\Controllers;
 
 use App\Services\ReportService;
-use Slowlyo\OwlAdmin\Controllers\AdminController;
 use Slowlyo\OwlAdmin\Renderers\Page;
 use Slowlyo\OwlAdmin\Renderers\Card;
 use Slowlyo\OwlAdmin\Renderers\Chart;
 use Slowlyo\OwlAdmin\Renderers\Grid;
 use Slowlyo\OwlAdmin\Renderers\Table;
-use Slowlyo\OwlAdmin\Renderers\Service;
 use Slowlyo\OwlAdmin\Renderers\Button;
 use Slowlyo\OwlAdmin\Renderers\Tpl;
 
@@ -35,11 +33,11 @@ class ReportsController extends AdminController
                             Button::make()
                                 ->label("导出Excel")
                                 ->actionType("ajax")
-                                ->api("/admin-api/reports/export/excel"),
+                                ->api("/reports/export/excel"),
                             Button::make()
                                 ->label("导出PDF")
                                 ->actionType("ajax")
-                                ->api("/admin-api/reports/export/pdf"),
+                                ->api("/reports/export/pdf"),
                         ]),
                     ]),
 
@@ -59,9 +57,9 @@ class ReportsController extends AdminController
                                             'datasets' => '${cashflow.datasets}',
                                         ],
                                     ])
-                                    ->api(Service::make()->url("/admin-api/reports/cashflow")),
+                                    ->api("/reports/cashflow"),
                             ]),
-                        
+
                         // 风险等级分布
                         Card::make()
                             ->body([
@@ -77,9 +75,9 @@ class ReportsController extends AdminController
                                             ]],
                                         ],
                                     ])
-                                    ->api(Service::make()->url("/admin-api/reports/risk")),
+                                    ->api("/reports/risk"),
                             ]),
-                        
+
                         // 净借还变化
                         Card::make()
                             ->body([
@@ -98,7 +96,7 @@ class ReportsController extends AdminController
                                             ]],
                                         ],
                                     ])
-                                    ->api(Service::make()->url("/admin-api/reports/net-change")),
+                                    ->api("/reports/net-change"),
                             ]),
                     ]),
 
@@ -121,16 +119,16 @@ class ReportsController extends AdminController
                                             ]],
                                         ],
                                     ])
-                                    ->api(Service::make()->url("/admin-api/reports/channel")),
+                                    ->api("/reports/channel"),
                             ]),
-                        
+
                         // 提醒活跃热力图（占位）
                         Card::make()
                             ->body([
                                 Tpl::make()->tpl('提醒活跃热力图'),
                                 Tpl::make()->tpl('加载中...')->className("text-center p-4"),
                             ]),
-                        
+
                         // 运营能力雷达图（占位）
                         Card::make()
                             ->body([
@@ -152,7 +150,7 @@ class ReportsController extends AdminController
                                 ['name' => 'amount', 'label' => '金额'],
                                 ['name' => 'rate', 'label' => '占比'],
                             ])
-                            ->api(Service::make()->url("/admin-api/reports/asset-quality")),
+                            ->api("/reports/asset-quality"),
                     ]),
 
                 // 队列分析和逾期漏斗
@@ -172,9 +170,9 @@ class ReportsController extends AdminController
                                         ['name' => 'retention_60', 'label' => '60天'],
                                         ['name' => 'retention_90', 'label' => '90天'],
                                     ])
-                                    ->api(Service::make()->url("/admin-api/reports/cohort")),
+                                    ->api("/reports/cohort"),
                             ]),
-                        
+
                         // 逾期漏斗
                         Card::make()
                             ->body([
@@ -190,7 +188,7 @@ class ReportsController extends AdminController
                                             ]],
                                         ],
                                     ])
-                                    ->api(Service::make()->url("/admin-api/reports/funnel")),
+                                    ->api("/reports/funnel"),
                             ]),
                     ]),
 
@@ -212,9 +210,9 @@ class ReportsController extends AdminController
                                         ['name' => 'overdue_rate', 'label' => '逾期率'],
                                         ['name' => 'npl', 'label' => 'NPL'],
                                     ])
-                                    ->api(Service::make()->url("/admin-api/reports/vintage")),
+                                    ->api("/reports/vintage"),
                             ]),
-                        
+
                         // 迁移矩阵（占位）
                         Card::make()
                             ->body([
@@ -234,7 +232,7 @@ class ReportsController extends AdminController
     {
         $service = new ReportService();
         $data = $service->getCashFlowData();
-        
+
         return $this->response()->success(['cashflow' => $data]);
     }
 
@@ -245,7 +243,7 @@ class ReportsController extends AdminController
     {
         $service = new ReportService();
         $data = $service->getRiskDistribution();
-        
+
         return $this->response()->success(['risk' => $data]);
     }
 
@@ -256,7 +254,7 @@ class ReportsController extends AdminController
     {
         $service = new ReportService();
         $data = $service->getNetLoanChange();
-        
+
         return $this->response()->success(['netChange' => $data]);
     }
 
@@ -267,7 +265,7 @@ class ReportsController extends AdminController
     {
         $service = new ReportService();
         $data = $service->getChannelDistribution();
-        
+
         return $this->response()->success(['channel' => $data]);
     }
 
@@ -278,7 +276,7 @@ class ReportsController extends AdminController
     {
         $service = new ReportService();
         $data = $service->getAssetQuality();
-        
+
         return $this->response()->success([
             'assetQuality' => [
                 'total_outstanding' => '在贷余额：￥' . $data['total_outstanding'],
@@ -294,7 +292,7 @@ class ReportsController extends AdminController
     {
         $service = new ReportService();
         $data = $service->getCohortAnalysis();
-        
+
         return $this->response()->success(['items' => $data]);
     }
 
@@ -305,7 +303,7 @@ class ReportsController extends AdminController
     {
         $service = new ReportService();
         $data = $service->getOverdueFunnel();
-        
+
         return $this->response()->success(['funnel' => $data]);
     }
 
@@ -316,7 +314,7 @@ class ReportsController extends AdminController
     {
         $service = new ReportService();
         $data = $service->getVintageAnalysis();
-        
+
         return $this->response()->success(['items' => $data]);
     }
 

@@ -4,12 +4,15 @@ namespace App\Services\Wecom;
 
 use App\Models\WecomContact;
 use App\Models\WecomLog;
+use App\Services\AdminService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-class WecomService
+class WecomService extends AdminService
 {
+    protected string $modelName = WecomContact::class;
+
     public function enabled(): bool
     {
         return (bool) config('services.wecom.enabled');

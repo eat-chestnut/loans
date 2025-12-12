@@ -94,17 +94,17 @@ class DashboardController extends AdminController
                                         ->level("primary")
                                         ->className("ghost")
                                         ->actionType("link")
-                                        ->link("/admin#/notifications"),
+                                        ->link("notifications"),
                                     Button::make()
                                         ->label("逾期详情")
                                         ->className("ghost")
                                         ->actionType("link")
-                                        ->link("/admin#/overdue"),
+                                        ->link("overdue"),
                                 ]
                             ],
                         ]),
                     ])
-                    ->api(Service::make()->url("/admin-api/dashboard/metrics")),
+                    ->api("/dashboard/metrics"),
 
                 // 主要KPI指标
                 Grid::make()
@@ -143,7 +143,7 @@ class DashboardController extends AdminController
                                 Tpl::make()->tpl('风险等级：高/极高')->className("help"),
                             ]),
                     ])
-                    ->api(Service::make()->url("/admin-api/dashboard/metrics")),
+                    ->api("/dashboard/metrics"),
 
                 // 次要KPI指标
                 Grid::make()
@@ -230,7 +230,7 @@ class DashboardController extends AdminController
                                 Tpl::make()->tpl('逾期回收 vs 逾期敞口')->className("help"),
                             ]),
                     ])
-                    ->api(Service::make()->url("/admin-api/dashboard/metrics")),
+                    ->api("/dashboard/metrics"),
 
                 // 运营总览
                 Card::make()
@@ -244,11 +244,11 @@ class DashboardController extends AdminController
                                 ->label("进入报表中心")
                                 ->level("primary")
                                 ->actionType("link")
-                                ->link("/admin#/reports"),
+                                ->link("reports"),
                             Button::make()
                                 ->label("导出Excel")
                                 ->actionType("ajax")
-                                ->api(Service::make()->url("/admin-api/dashboard/export")),
+                                ->api("/dashboard/export"),
                         ]),
                         Grid::make()
                             ->className("grid-cols-2")
@@ -258,13 +258,13 @@ class DashboardController extends AdminController
                                         Tpl::make()->tpl('<h3>高风险 TOP5</h3>')->className("card-title"),
                                         Tpl::make()->tpl('${risk_top}')->className("risk-top"),
                                     ])
-                                    ->api(Service::make()->url("/admin-api/dashboard/risk-top")),
+                                    ->api("/dashboard/risk-top"),
                                 Card::make()
                                     ->body([
                                         Tpl::make()->tpl('<h3>提醒渠道统计（近7日）</h3>')->className("card-title"),
                                         Tpl::make()->tpl('${channel_stats}')->className("channel-stats"),
                                     ])
-                                    ->api(Service::make()->url("/admin-api/dashboard/channel-stats")),
+                                    ->api("/dashboard/channel-stats"),
                             ]),
                     ]),
             ]);
@@ -279,7 +279,7 @@ class DashboardController extends AdminController
     {
         $service = new DashboardService();
         $metrics = $service->getCoreMetrics();
-        
+
         return $this->response()->success(array_merge($metrics, [
             'date' => date('Y-m-d H:i:s')
         ]));
@@ -292,7 +292,7 @@ class DashboardController extends AdminController
     {
         $service = new DashboardService();
         $data = $service->getHighRiskTop5();
-        
+
         $html = '<table class="simple-table">';
         foreach ($data as $item) {
             $html .= sprintf(
@@ -304,7 +304,7 @@ class DashboardController extends AdminController
             );
         }
         $html .= '</table>';
-        
+
         return $this->response()->success(['risk_top' => $html]);
     }
 
@@ -315,7 +315,7 @@ class DashboardController extends AdminController
     {
         $service = new DashboardService();
         $data = $service->getChannelStats();
-        
+
         $html = '<table class="simple-table">';
         foreach ($data as $channel => $count) {
             $html .= sprintf(
@@ -325,7 +325,7 @@ class DashboardController extends AdminController
             );
         }
         $html .= '</table>';
-        
+
         return $this->response()->success(['channel_stats' => $html]);
     }
 

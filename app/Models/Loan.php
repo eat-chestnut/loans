@@ -23,6 +23,8 @@ class Loan extends Model
         'co_borrower_snapshot',
         'collateral_total_value',
         'amount',
+        'paid_amount',
+        'profit_amount',
         'total_interest_amount',
         'term_months',
         'rate_month',
@@ -36,13 +38,17 @@ class Loan extends Model
         'start_date',
         'closed_at',
         'overdue_days',
+        'overdue_count',
     ];
 
     protected $casts = [
         'amount'            => 'float',
+        'paid_amount'       => 'float',
+        'profit_amount'     => 'float',
         'term_months'       => 'integer',
         'rate_month'        => 'float',
         'overdue_days'      => 'integer',
+        'overdue_count'     => 'integer',
         'customer_id'       => 'integer',
         'admin_user_id'     => 'integer',
         'co_borrower_snapshot' => 'array',
@@ -64,7 +70,7 @@ class Loan extends Model
     public static function stateOptions(): array
     {
         return [
-            self::STATE_NEW     => '新增',
+            self::STATE_NEW     => '还款中',
             self::STATE_RENEWAL => '续借',
             self::STATE_CLOSED  => '结清',
         ];

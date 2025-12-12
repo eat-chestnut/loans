@@ -127,7 +127,7 @@ class SendRepaymentReminders extends Command
         $this->info(sprintf('WeCom: scanning due on %s', $targetDate->toDateString()));
 
         $query = RepaymentSchedule::query()
-            ->with(['loan.customer.wecomContacts'])
+            ->with(['loan.customer.wecomContact'])
             ->whereDate('due_date', $targetDate)
             ->where('is_paid', false)
             ->whereNull('wecom_reminder_sent_at')

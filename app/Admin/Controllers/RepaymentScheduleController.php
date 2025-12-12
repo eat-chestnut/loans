@@ -3,10 +3,12 @@
 namespace App\Admin\Controllers;
 
 use App\Admin\Renderers\Amis;
+use App\Admin\Supports\Components;
 use App\Models\Loan;
 use App\Models\RepaymentSchedule;
 use App\Services\RepaymentScheduleService;
 use App\Services\RepaymentScheduleAdminService;
+use Illuminate\Support\Facades\DB;
 use Slowlyo\OwlAdmin\Controllers\AdminController;
 
 /**
@@ -18,32 +20,74 @@ class RepaymentScheduleController extends AdminController
 
     public function list()
     {
-        $crud = $this->baseCRUD()
+        $statistics = $this->service->query()
+            ->select(DB::raw('COUNT(1) as total'), DB::raw('SUM(if (is_paid=1, 1, 0)) as repayment'))
+            ->first();
+        $statistics->wait_repayment = $this->service->query()->whereDate('due_date', '<=', now()->addMonth()->toDateString())->where('is_paid', 0)->count();
+
+        $tabs = amis()->Tabs()
+            ->tabsMode('card')
+            ->tabs([
+                [
+                    'title' => "本期待还款({$statistics->wait_repayment})",
+                    'tab' => $this->curdList(['is_paid' => 0, 'max_due_date' => now()->addMonth()->toDateString()], [
+                        amis()->AjaxAction()->level('link')->className('text-success')->label('标记还款')
+                            ->api('post:/repayment-schedules/${id}/mark-paid')
+                            ->confirmText('确认标记该期已还款？')->hiddenOn('${is_paid=0}'),
+                    ]),
+                    'reload' => true,
+                ],
+                [
+                    'title' => "已还款({$statistics->repayment})",
+                    'tab' => $this->curdList(['is_paid' => 1]),
+                    'reload' => true,
+                ],
+                [
+                    'title' => "全部({$statistics->total})",
+                    'tab' => $this->curdList(),
+                    'reload' => true,
+                ]
+            ]);
+
+        return $this->baseList($tabs);
+    }
+
+    public function curdList($params=[], $actions=[])
+    {
+        return $this->baseCRUD()
             ->filterTogglable()
+            ->bulkActions()
             ->headerToolbar([
                 ...$this->baseHeaderToolBar()
             ])
+            ->defaultParams($params)
             ->columns([
-                amis()->TableColumn('loan.loan_number', '贷款编号')->copyable(),
+                amis()->TableColumn('loan.ticket_no', '当票号'), // todo 点击打开放款详情
                 amis()->TableColumn('loan.customer.name', '客户姓名'),
                 amis()->TableColumn('period', '期数'),
-                amis()->TableColumn('due_date', '还款日期'),
-                amis()->TableColumn('amount', '应还金额')
-                    ->set('valueTpl', '${amount|number:2}'),
-                amis()->TableColumn('principal', '本金')
-                    ->set('valueTpl', '${principal|number:2}'),
-                amis()->TableColumn('interest', '利息')
-                    ->set('valueTpl', '${interest|number:2}'),
-                amis()->TableColumn('remaining_principal', '剩余本金')
-                    ->set('valueTpl', '${remaining_principal|number:2}'),
-                amis()->TableColumn('state', '状态'),
-                amis()->TableColumn('paid_at', '还款时间'),
-                $this->rowActions([
-                    $this->rowShowButton(),
-                    amis()->Action()->actionType('ajax')->label('标记还款')
-                        ->api('post:/admin-api/repayment-schedules/${id}/mark-paid')
-                        ->confirmText('确认标记该期已还款？'),
+                amis()->TableColumn('due_date', '还款期限')->type('date'),
+                Components::make()->tableNumberColumn('amount', '应还金额'),
+                Components::make()->tableNumberColumn('principal', '本金'),
+                Components::make()->tableNumberColumn('interest', '利息'),
+                Components::make()->tableNumberColumn('remaining_principal', '剩余本金'),
+                amis()->TableColumn('state', '状态')->type('status')->source([
+                    0 => [
+                        'label' => '待还款',
+                        "icon" => "schedule"
+                    ],
+                    1 => [
+                        'label' => '已还款',
+                        "icon" => "success",
+                        "color" => "#039403"
+                    ],
+                    -1 => [
+                        'label' => '已逾期',
+                        "icon" => "fail",
+                        "color" => "#fail"
+                    ]
                 ]),
+                amis()->TableColumn('paid_at', '还款时间'), // todo 逾期未还标 红色， 逾期已还标 粉色
+                $this->rowActions($actions)->visible(filled($actions)),
             ])
             ->filter(
                 amis()->Form()->wrapWithPanel(false)->body([
@@ -59,8 +103,6 @@ class RepaymentScheduleController extends AdminController
                     amis()->DateRangeControl('due_date', '还款日期')->clearable(),
                 ])
             );
-
-        return $this->baseList($crud);
     }
 
     public function show($id)
@@ -98,14 +140,14 @@ class RepaymentScheduleController extends AdminController
         try {
             $service = new RepaymentScheduleService();
             $result = $service->markAsPaid($id);
-            
+
             if ($result) {
-                return $this->response()->success('标记成功');
+                return $this->response()->successMessage('标记成功');
             } else {
-                return $this->response()->error('标记失败，请检查状态');
+                return $this->response()->fail('标记失败，请检查状态');
             }
         } catch (\Exception $e) {
-            return $this->response()->error($e->getMessage());
+            return $this->response()->fail($e->getMessage());
         }
     }
 
@@ -117,10 +159,10 @@ class RepaymentScheduleController extends AdminController
         try {
             $service = new RepaymentScheduleService();
             $stats = $service->getRepaymentStats($loanId);
-            
+
             return $this->response()->success($stats);
         } catch (\Exception $e) {
-            return $this->response()->error($e->getMessage());
+            return $this->response()->fail($e->getMessage());
         }
     }
 
@@ -132,15 +174,15 @@ class RepaymentScheduleController extends AdminController
         try {
             $loan = Loan::find($loanId);
             if (!$loan) {
-                return $this->response()->error('贷款不存在');
+                return $this->response()->fail('贷款不存在');
             }
-            
+
             $service = new RepaymentScheduleService();
             $service->saveSchedule($loan);
-            
+
             return $this->response()->success('还款计划重新生成成功');
         } catch (\Exception $e) {
-            return $this->response()->error($e->getMessage());
+            return $this->response()->fail($e->getMessage());
         }
     }
 }
