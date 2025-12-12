@@ -14,8 +14,22 @@ Route::group([
     'prefix'     => config('admin.route.prefix'),
     'middleware' => config('admin.route.middleware'),
 ], function (Router $router) {
-    $router->resource('dashboard', \App\Admin\Controllers\DashboardController::class);
+    // Dashboard API路由
+    $router->resource('dashboard', \App\Admin\Controllers\DashboardController::class, ['only' => ['index']]);
+    $router->get('dashboard_metrics', [\App\Admin\Controllers\DashboardController::class, 'metrics']);
+    $router->get('dashboard_risk-top', [\App\Admin\Controllers\DashboardController::class, 'riskTop']);
+    $router->get('dashboard_channel-stats', [\App\Admin\Controllers\DashboardController::class, 'channelStats']);
+    $router->get('dashboard_export', [\App\Admin\Controllers\DashboardController::class, 'export']);
     $router->resource('reports', \App\Admin\Controllers\ReportsController::class);
+    $router->resource('sms_logs', \App\Admin\Controllers\SmsLogController::class);
+    $router->resource('wecom_logs', \App\Admin\Controllers\WecomLogController::class);
+    $router->any('system/settings/reminder', [\App\Admin\Controllers\SettingController::class, 'reminder']);
+    $router->any('system/settings/wecom', [\App\Admin\Controllers\SettingController::class, 'wecom']);
+    $router->any('system/settings/baidu-call', [\App\Admin\Controllers\SettingController::class, 'baiduCall']);
+    $router->any('system/settings/sms', [\App\Admin\Controllers\SettingController::class, 'sms']);
+    $router->get('wecom/sync-customers', [\App\Admin\Controllers\WechatController::class, 'syncWecomCustomers']);
+    $router->post('wecom/{id}/bind-customer', [\App\Admin\Controllers\WechatController::class, 'bindCustomer']);
+    $router->post('wecom/{id}/unbind-customer', [\App\Admin\Controllers\WechatController::class, 'unbindCustomer']);
     $router->resource('system/settings', \App\Admin\Controllers\SettingController::class);
     $router->resource('customers', CustomerController::class);
     $router->resource('collaterals', CollateralController::class);
@@ -37,24 +51,19 @@ Route::group([
 
     $router->post('customers/{id}/notice/{type}', [CustomerController::class, 'notice']);
 
-    // Dashboard API路由
-    $router->get('dashboard/metrics', [\App\Admin\Controllers\DashboardController::class, 'metrics']);
-    $router->get('dashboard/risk-top', [\App\Admin\Controllers\DashboardController::class, 'riskTop']);
-    $router->get('dashboard/channel-stats', [\App\Admin\Controllers\DashboardController::class, 'channelStats']);
-    $router->get('dashboard/export', [\App\Admin\Controllers\DashboardController::class, 'export']);
 
     // 逾期管理API路由
     $router->post('overdue/{id}/mark-paid', [\App\Admin\Controllers\OverdueController::class, 'markAsPaid']);
 
     // 报表中心API路由
-    $router->get('reports/cashflow', [\App\Admin\Controllers\ReportsController::class, 'cashflow']);
-    $router->get('reports/risk', [\App\Admin\Controllers\ReportsController::class, 'risk']);
-    $router->get('reports/net-change', [\App\Admin\Controllers\ReportsController::class, 'netChange']);
-    $router->get('reports/channel', [\App\Admin\Controllers\ReportsController::class, 'channel']);
-    $router->get('reports/asset-quality', [\App\Admin\Controllers\ReportsController::class, 'assetQuality']);
-    $router->get('reports/cohort', [\App\Admin\Controllers\ReportsController::class, 'cohort']);
-    $router->get('reports/funnel', [\App\Admin\Controllers\ReportsController::class, 'funnel']);
-    $router->get('reports/vintage', [\App\Admin\Controllers\ReportsController::class, 'vintage']);
-    $router->get('reports/export/excel', [\App\Admin\Controllers\ReportsController::class, 'exportExcel']);
-    $router->get('reports/export/pdf', [\App\Admin\Controllers\ReportsController::class, 'exportPDF']);
+    $router->get('reports_cashflow', [\App\Admin\Controllers\ReportsController::class, 'cashflow']);
+    $router->get('reports_risk', [\App\Admin\Controllers\ReportsController::class, 'risk']);
+    $router->get('reports_net-change', [\App\Admin\Controllers\ReportsController::class, 'netChange']);
+    $router->get('reports_channel', [\App\Admin\Controllers\ReportsController::class, 'channel']);
+    $router->get('reports_asset-quality', [\App\Admin\Controllers\ReportsController::class, 'assetQuality']);
+    $router->get('reports_cohort', [\App\Admin\Controllers\ReportsController::class, 'cohort']);
+    $router->get('reports_funnel', [\App\Admin\Controllers\ReportsController::class, 'funnel']);
+    $router->get('reports_vintage', [\App\Admin\Controllers\ReportsController::class, 'vintage']);
+    $router->get('reports_export_excel', [\App\Admin\Controllers\ReportsController::class, 'exportExcel']);
+    $router->get('reports_export_pdf', [\App\Admin\Controllers\ReportsController::class, 'exportPDF']);
 });

@@ -4,6 +4,7 @@ namespace App\Admin\Controllers;
 
 use App\Admin\Supports\Components;
 use App\Enums\CollateralCityType;
+use App\Enums\CollateralType;
 use App\Models\Loan;
 use App\Services\CollateralService;
 use App\Services\CustomerService;
@@ -77,16 +78,16 @@ class LoanController extends AdminController
         return $this->baseForm()->body([
             amis()->FieldSetControl()->collapsable()->title('客户信息')->body([
                 amis()->GroupControl()->body([
-                    amis()->TextControl('customer.name', '姓名')->static(),
-                    amis()->TextControl('customer.id_card', '身份证号')->static(),
-                    amis()->TextControl('customer.phone', '电话')->static()
+                    amis()->TextControl('customer.name', '姓名'),
+                    amis()->TextControl('customer.id_card', '身份证号'),
+                    amis()->TextControl('customer.phone', '电话')
                 ]),
-                amis()->TextControl('customer.address', '家庭住址')->static(),
+                amis()->TextControl('customer.address', '家庭住址'),
                 amis()->FieldSetControl()->title('共同借款人')->collapsed()->collapsable()->body([
                     amis()->GroupControl()->body([
-                        amis()->TextControl('co_borrower_snapshot.name', '姓名')->static(),
-                        amis()->TextControl('co_borrower_snapshot.id_card', '身份证号')->static(),
-                        amis()->TextControl('co_borrower_snapshot.phone', '电话')->static()
+                        amis()->TextControl('co_borrower_snapshot.name', '姓名'),
+                        amis()->TextControl('co_borrower_snapshot.id_card', '身份证号'),
+                        amis()->TextControl('co_borrower_snapshot.phone', '电话')
                     ]),
                 ])
             ]),
@@ -95,15 +96,17 @@ class LoanController extends AdminController
                 amis()->TableControl('collaterals', false)
                     ->columnsTogglable(false)
                     ->columns([
-                        amis()->TableColumn('name', '抵押物'),
-                        amis()->TableColumn('type_label', '类型'),
-                        amis()->TableColumn('area', '面积'),
-                        amis()->TableColumn('certificate_no', '产权证'),
-                        amis()->TableColumn('valuation', '估价'),
-                        amis()->TableColumn('value', '房屋价值'),
-                        amis()->TableColumn('note', '备注'),
+                        amis()->TextControl('name', '抵押物'),
+                        amis()->SelectControl('type_label', '类型')->options(CollateralType::asSelectArray()),
+                        amis()->TextControl('area', '面积'),
+                        amis()->TextControl('certificate_no', '产权证'),
+                        amis()->NumberControl('valuation', '估价')->kilobitSeparator()->prefix('￥'),
+                        amis()->NumberControl('value', '房屋价值')->kilobitSeparator()->prefix('￥'),
+                        amis()->TextControl('note', '备注'),
                     ])
-                    ->static(true),
+                    ->needConfirm(false)
+                    ->addable()
+                    ->removable(),
             ]),
             amis()->Divider(),
             amis()->FieldSetControl()->title('贷款信息')->collapsable()->body([
@@ -141,7 +144,7 @@ class LoanController extends AdminController
                     ->columnsTogglable(false)
                     ->needConfirm(false)
                     ->defaultValue([])
-            ])
+            ])->visible($isEdit)
         ]);
     }
 

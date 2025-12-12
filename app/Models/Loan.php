@@ -16,6 +16,8 @@ class Loan extends Model
     public const STATE_RENEWAL = 2;
     public const STATE_CLOSED  = 3;
 
+    public const STATE_COMPLETED     = 4;
+
     protected $fillable = [
         'loan_number',
         'ticket_no',
@@ -73,6 +75,7 @@ class Loan extends Model
             self::STATE_NEW     => '还款中',
             self::STATE_RENEWAL => '续借',
             self::STATE_CLOSED  => '结清',
+            self::STATE_COMPLETED => '提前结清'
         ];
     }
 

@@ -5,7 +5,8 @@ namespace App\Services;
 use App\Models\Customer;
 use App\Models\Loan;
 use App\Models\RepaymentSchedule;
-use App\Models\Communication;
+use App\Models\SmsLog;
+use App\Models\WecomLog;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -187,24 +188,15 @@ class ReportService
     {
         $sevenDaysAgo = Carbon::now()->subDays(7);
         
-        $distribution = Communication::where('happened_at', '>=', $sevenDaysAgo)
-            ->selectRaw('channel, COUNT(*) as count')
-            ->groupBy('channel')
-            ->get()
-            ->mapWithKeys(function($item) {
-                $label = Communication::channelOptions()[$item->channel] ?? '其他';
-                return [$label => $item->count];
-            });
+        $smsCount = SmsLog::where('sent_at', '>=', $sevenDaysAgo)->count();
+        $wecomCount = WecomLog::where('sent_at', '>=', $sevenDaysAgo)->count();
         
         return [
-            'labels' => array_keys($distribution->toArray()),
-            'data' => array_values($distribution->toArray()),
+            'labels' => ['短信', '企微'],
+            'data' => [$smsCount, $wecomCount],
             'backgroundColor' => [
-                '#4299e1', // 电话 - 蓝色
-                '#48bb78', // 上门 - 绿色
-                '#38b2ac', // 微信 - 青色
                 '#ed8936', // 短信 - 橙色
-                '#a0aec0', // 其他 - 灰色
+                '#38b2ac', // 企微 - 青色
             ]
         ];
     }
@@ -220,24 +212,24 @@ class ReportService
         $par1 = RepaymentSchedule::where('due_date', '<', $now)
             ->where('is_paid', 0)
             ->whereRaw('DATEDIFF(NOW(), due_date) BETWEEN 1 AND 30')
-            ->sum('remaining_principal');
+            ->sum('principal');
             
         $par2 = RepaymentSchedule::where('due_date', '<', $now)
             ->where('is_paid', 0)
             ->whereRaw('DATEDIFF(NOW(), due_date) BETWEEN 31 AND 60')
-            ->sum('remaining_principal');
+            ->sum('principal');
             
         $par3 = RepaymentSchedule::where('due_date', '<', $now)
             ->where('is_paid', 0)
             ->whereRaw('DATEDIFF(NOW(), due_date) BETWEEN 61 AND 90')
-            ->sum('remaining_principal');
+            ->sum('principal');
             
         $par4 = RepaymentSchedule::where('due_date', '<', $now)
             ->where('is_paid', 0)
             ->whereRaw('DATEDIFF(NOW(), due_date) > 90')
-            ->sum('remaining_principal');
+            ->sum('principal');
             
-        $totalOutstanding = RepaymentSchedule::where('is_paid', 0)->sum('remaining_principal');
+        $totalOutstanding = RepaymentSchedule::where('is_paid', 0)->sum('principal');
         
         // 计算占比
         $par1Rate = $totalOutstanding > 0 ? round(($par1 / $totalOutstanding) * 100, 2) : 0;
@@ -305,7 +297,7 @@ class ReportService
                 'DATE_FORMAT(disbursed_at, "%Y-%m") as vintage,
                  COUNT(*) as loan_count,
                  SUM(amount) as loan_amount,
-                 SUM(CASE WHEN state = 1 THEN amount ELSE 0 END) as outstanding_amount'
+                 SUM(CASE WHEN state = 0 THEN amount ELSE 0 END) as outstanding_amount'
             )
             ->where('disbursed_at', '>=', $startDate)
             ->groupBy('vintage')
@@ -375,7 +367,7 @@ class ReportService
     private function calculateRetention($cohortDate, $days)
     {
         $retained = Loan::where('disbursed_at', 'like', $cohortDate->format('Y-m') . '%')
-            ->where('state', 1) // 仍在贷
+            ->where('state', Loan::STATE_NEW) // 仍在贷
             ->count();
             
         $total = Loan::where('disbursed_at', 'like', $cohortDate->format('Y-m') . '%')

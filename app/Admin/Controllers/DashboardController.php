@@ -3,17 +3,13 @@
 namespace App\Admin\Controllers;
 
 use App\Services\DashboardService;
-use Slowlyo\OwlAdmin\Controllers\AdminController;
 use Slowlyo\OwlAdmin\Renderers\Page;
 use Slowlyo\OwlAdmin\Renderers\Card;
 use Slowlyo\OwlAdmin\Renderers\Flex;
-use Slowlyo\OwlAdmin\Renderers\Wrapper;
 use Slowlyo\OwlAdmin\Renderers\Grid;
 use Slowlyo\OwlAdmin\Renderers\Tpl;
 use Slowlyo\OwlAdmin\Renderers\Button;
-use Slowlyo\OwlAdmin\Renderers\Chart;
 use Slowlyo\OwlAdmin\Renderers\Service;
-use Slowlyo\OwlAdmin\Renderers\SchemaNode;
 
 /**
  * 仪表盘控制器
@@ -26,9 +22,43 @@ class DashboardController extends AdminController
             ->className("p-3")
             ->title("首页概览")
             ->body([
+                // 时间维度选择器
+                Card::make()
+                    ->className("period-selector-card mb-3")
+                    ->body([
+                        amis()->Form()
+                            ->wrapWithPanel(false)
+                            ->mode('inline')
+                            ->body([
+                                amis()->RadiosControl('period', '时间维度')
+                                    ->options([
+                                        ['label' => '本周', 'value' => 'week'],
+                                        ['label' => '本月', 'value' => 'month'],
+                                        ['label' => '本季度', 'value' => 'quarter'],
+                                        ['label' => '本年度', 'value' => 'year'],
+                                    ])
+                                    ->value('month')
+                                    ->selectFirst()
+                            ])
+                            ->onEvent([
+                                'change' => [
+                                    'actions' => [
+                                        [
+                                            'actionType' => 'reload',
+                                            'componentId' => 'dashboard-metrics',
+                                            'data' => [
+                                                'period' => '${period}',
+                                            ],
+                                        ],
+                                    ],
+                                ],
+                            ]),
+                    ]),
+
                 // 英雄卡片 - 业务全景
                 Card::make()
                     ->className("hero-card")
+                    ->id('dashboard-metrics')
                     ->body([
                         Flex::make()->items([
                             [
@@ -39,7 +69,7 @@ class DashboardController extends AdminController
                                         ->tpl('<p class="hero-eyebrow">实时 · 报表中心</p>')
                                         ->className("hero-eyebrow"),
                                     Tpl::make()
-                                        ->tpl('<h2>业务全景一屏掌控</h2>')
+                                        ->tpl('<h2>业务全景一屏掌控 <span class="period-badge">${period_label}</span></h2>')
                                         ->className("hero-title"),
                                     Tpl::make()
                                         ->tpl('追踪现金流、风险与提醒履约，洞察每一个节点。')
@@ -71,8 +101,8 @@ class DashboardController extends AdminController
                                         [
                                             'type' => 'wrapper',
                                             'body' => [
-                                                Tpl::make()->tpl('${monthly_loans}'),
-                                                Tpl::make()->tpl('本月放款（元）')->className("metric-label"),
+                                                Tpl::make()->tpl('${period_loans}'),
+                                                Tpl::make()->tpl('${period_label}放款')->className("metric-label"),
                                             ]
                                         ],
                                         [
@@ -104,12 +134,16 @@ class DashboardController extends AdminController
                             ],
                         ]),
                     ])
-                    ->api("/dashboard/metrics"),
+                    ->api("/dashboard_metrics"),
 
                 // 主要KPI指标
-                Grid::make()
-                    ->className("kpi-grid")
-                    ->columns([
+                Service::make()
+                    ->id('kpi-service')
+                    ->api('/dashboard_metrics?period=${period|default:month}')
+                    ->body(
+                        Grid::make()
+                            ->className("kpi-grid")
+                            ->columns([
                         Card::make()
                             ->className("kpi-card")
                             ->body([
@@ -142,20 +176,24 @@ class DashboardController extends AdminController
                                 Tpl::make()->tpl('${high_risk_customers}')->className("metric"),
                                 Tpl::make()->tpl('风险等级：高/极高')->className("help"),
                             ]),
-                    ])
-                    ->api("/dashboard/metrics"),
+                    ]),
+                    ),
 
                 // 次要KPI指标
-                Grid::make()
-                    ->className("kpi-grid secondary")
-                    ->columns([
+                Service::make()
+                    ->id('kpi-secondary-service')
+                    ->api('/dashboard_metrics?period=${period|default:month}')
+                    ->body(
+                        Grid::make()
+                            ->className("kpi-grid secondary")
+                            ->columns([
                         Card::make()
                             ->className("kpi-card")
                             ->body([
-                                Tpl::make()->tpl('⏰')->className("kpi-icon"),
-                                Tpl::make()->tpl('<h3>临期阈值 / 频率</h3>')->className("kpi-title"),
-                                Tpl::make()->tpl('${config}')->className("metric"),
-                                Tpl::make()->tpl('系统配置 · 临期提醒策略')->className("help"),
+                                Tpl::make()->tpl('⛰️')->className("kpi-icon"),
+                                Tpl::make()->tpl('<h3>${period_label}逾期笔数</h3>')->className("kpi-title"),
+                                Tpl::make()->tpl('${period_overdue_count}')->className("metric"),
+                                Tpl::make()->tpl('本期新增逾期计划')->className("help"),
                             ]),
                         Card::make()
                             ->className("kpi-card")
@@ -176,34 +214,34 @@ class DashboardController extends AdminController
                         Card::make()
                             ->className("kpi-card")
                             ->body([
-                                Tpl::make()->tpl('📬')->className("kpi-icon"),
-                                Tpl::make()->tpl('<h3>提醒发送量</h3>')->className("kpi-title"),
-                                Tpl::make()->tpl('${reminder_total}')->className("metric"),
-                                Tpl::make()->tpl('短信+企微（近7日）')->className("help"),
+                                Tpl::make()->tpl('💬')->className("kpi-icon"),
+                                Tpl::make()->tpl('<h3>${period_label}提醒发送</h3>')->className("kpi-title"),
+                                Tpl::make()->tpl('${period_reminder_total}')->className("metric"),
+                                Tpl::make()->tpl('短信: ${period_sms_sent} | 企微: ${period_wecom_sent}')->className("help"),
                             ]),
                         Card::make()
                             ->className("kpi-card")
                             ->body([
-                                Tpl::make()->tpl('🏦')->className("kpi-icon"),
-                                Tpl::make()->tpl('<h3>在贷余额</h3>')->className("kpi-title"),
-                                Tpl::make()->tpl('${inloan_balance}')->className("metric"),
-                                Tpl::make()->tpl('未结清本金')->className("help"),
+                                Tpl::make()->tpl('🏪')->className("kpi-icon"),
+                                Tpl::make()->tpl('<h3>${period_label}放款笔数</h3>')->className("kpi-title"),
+                                Tpl::make()->tpl('${period_loan_count}')->className("metric"),
+                                Tpl::make()->tpl('本期新增放款')->className("help"),
                             ]),
                         Card::make()
                             ->className("kpi-card")
                             ->body([
                                 Tpl::make()->tpl('🪙')->className("kpi-icon"),
-                                Tpl::make()->tpl('<h3>近30天应收 / 实收</h3>')->className("kpi-title"),
-                                Tpl::make()->tpl('${receivable_30days}')->className("metric"),
+                                Tpl::make()->tpl('<h3>${period_label}应收 / 实收</h3>')->className("kpi-title"),
+                                Tpl::make()->tpl('${period_receivable} / ${period_received}')->className("metric"),
                                 Tpl::make()->tpl('对比回款节奏')->className("help"),
                             ]),
                         Card::make()
                             ->className("kpi-card")
                             ->body([
                                 Tpl::make()->tpl('📊')->className("kpi-icon"),
-                                Tpl::make()->tpl('<h3>回款率</h3>')->className("kpi-title"),
-                                Tpl::make()->tpl('${collection_rate}')->className("metric"),
-                                Tpl::make()->tpl('最近30天应收 vs 实收')->className("help"),
+                                Tpl::make()->tpl('<h3>${period_label}回款率</h3>')->className("kpi-title"),
+                                Tpl::make()->tpl('${period_collection_rate}')->className("metric"),
+                                Tpl::make()->tpl('本期应收 vs 实收')->className("help"),
                             ]),
                         Card::make()
                             ->className("kpi-card")
@@ -229,8 +267,16 @@ class DashboardController extends AdminController
                                 Tpl::make()->tpl('待实现')->className("metric"),
                                 Tpl::make()->tpl('逾期回收 vs 逾期敞口')->className("help"),
                             ]),
-                    ])
-                    ->api("/dashboard/metrics"),
+                        Card::make()
+                            ->className("kpi-card")
+                            ->body([
+                                Tpl::make()->tpl('💰')->className("kpi-icon"),
+                                Tpl::make()->tpl('<h3>${period_label}已收利息</h3>')->className("kpi-title"),
+                                Tpl::make()->tpl('${period_paid_interest}')->className("metric"),
+                                Tpl::make()->tpl('本期利息收入')->className("help"),
+                            ]),
+                    ]),
+                    ),
 
                 // 运营总览
                 Card::make()
@@ -248,7 +294,7 @@ class DashboardController extends AdminController
                             Button::make()
                                 ->label("导出Excel")
                                 ->actionType("ajax")
-                                ->api("/dashboard/export"),
+                                ->api("/dashboard_export"),
                         ]),
                         Grid::make()
                             ->className("grid-cols-2")
@@ -258,13 +304,13 @@ class DashboardController extends AdminController
                                         Tpl::make()->tpl('<h3>高风险 TOP5</h3>')->className("card-title"),
                                         Tpl::make()->tpl('${risk_top}')->className("risk-top"),
                                     ])
-                                    ->api("/dashboard/risk-top"),
+                                    ->api("/dashboard_risk-top"),
                                 Card::make()
                                     ->body([
                                         Tpl::make()->tpl('<h3>提醒渠道统计（近7日）</h3>')->className("card-title"),
                                         Tpl::make()->tpl('${channel_stats}')->className("channel-stats"),
                                     ])
-                                    ->api("/dashboard/channel-stats"),
+                                    ->api("/dashboard_channel-stats"),
                             ]),
                     ]),
             ]);
@@ -277,11 +323,13 @@ class DashboardController extends AdminController
      */
     public function metrics()
     {
+        $period = request('period', 'month');
         $service = new DashboardService();
-        $metrics = $service->getCoreMetrics();
+        $metrics = $service->getCoreMetrics($period);
 
         return $this->response()->success(array_merge($metrics, [
-            'date' => date('Y-m-d H:i:s')
+            'date' => date('Y-m-d H:i:s'),
+            'period' => $period,
         ]));
     }
 
@@ -313,8 +361,9 @@ class DashboardController extends AdminController
      */
     public function channelStats()
     {
+        $period = request('period', 'month');
         $service = new DashboardService();
-        $data = $service->getChannelStats();
+        $data = $service->getChannelStats($period);
 
         $html = '<table class="simple-table">';
         foreach ($data as $channel => $count) {

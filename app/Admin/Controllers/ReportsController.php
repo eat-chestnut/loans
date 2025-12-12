@@ -33,11 +33,11 @@ class ReportsController extends AdminController
                             Button::make()
                                 ->label("导出Excel")
                                 ->actionType("ajax")
-                                ->api("/reports/export/excel"),
+                                ->api("/reports_export_excel"),
                             Button::make()
                                 ->label("导出PDF")
                                 ->actionType("ajax")
-                                ->api("/reports/export/pdf"),
+                                ->api("/reports_export_pdf"),
                         ]),
                     ]),
 
@@ -49,54 +49,63 @@ class ReportsController extends AdminController
                         Card::make()
                             ->body([
                                 Tpl::make()->tpl('现金流（按月 应收 vs 实收）'),
-                                Chart::make()
-                                    ->config([
-                                        'type' => 'line',
-                                        'data' => [
-                                            'labels' => '${cashflow.labels}',
-                                            'datasets' => '${cashflow.datasets}',
-                                        ],
-                                    ])
-                                    ->api("/reports/cashflow"),
+                                amis()->Service()
+                                    ->api("/reports_cashflow")
+                                    ->body(
+                                        Chart::make()
+                                            ->config([
+                                                'type' => 'line',
+                                                'data' => [
+                                                    'labels' => '${cashflow.labels}',
+                                                    'datasets' => '${cashflow.datasets}',
+                                                ],
+                                            ])
+                                    ),
                             ]),
 
                         // 风险等级分布
                         Card::make()
                             ->body([
                                 Tpl::make()->tpl('风险等级分布'),
-                                Chart::make()
-                                    ->config([
-                                        'type' => 'bar',
-                                        'data' => [
-                                            'labels' => '${risk.labels}',
-                                            'datasets' => [[
-                                                'data' => '${risk.data}',
-                                                'backgroundColor' => '${risk.backgroundColor}',
-                                            ]],
-                                        ],
-                                    ])
-                                    ->api("/reports/risk"),
+                                amis()->Service()
+                                    ->api("/reports_risk")
+                                    ->body(
+                                        Chart::make()
+                                            ->config([
+                                                'type' => 'bar',
+                                                'data' => [
+                                                    'labels' => '${risk.labels}',
+                                                    'datasets' => [[
+                                                        'data' => '${risk.data}',
+                                                        'backgroundColor' => '${risk.backgroundColor}',
+                                                    ]],
+                                                ],
+                                            ])
+                                    ),
                             ]),
 
                         // 净借还变化
                         Card::make()
                             ->body([
                                 Tpl::make()->tpl('净借还变化（按月）'),
-                                Chart::make()
-                                    ->config([
-                                        'type' => 'line',
-                                        'data' => [
-                                            'labels' => '${netChange.labels}',
-                                            'datasets' => [[
-                                                'label' => '净借还金额',
-                                                'data' => '${netChange.data}',
-                                                'borderColor' => '${netChange.borderColor}',
-                                                'backgroundColor' => '${netChange.backgroundColor}',
-                                                'fill' => true,
-                                            ]],
-                                        ],
-                                    ])
-                                    ->api("/reports/net-change"),
+                                amis()->Service()
+                                    ->api("/reports_net-change")
+                                    ->body(
+                                        Chart::make()
+                                            ->config([
+                                                'type' => 'line',
+                                                'data' => [
+                                                    'labels' => '${netChange.labels}',
+                                                    'datasets' => [[
+                                                        'label' => '净借还金额',
+                                                        'data' => '${netChange.data}',
+                                                        'borderColor' => '${netChange.borderColor}',
+                                                        'backgroundColor' => '${netChange.backgroundColor}',
+                                                        'fill' => true,
+                                                    ]],
+                                                ],
+                                            ])
+                                    ),
                             ]),
                     ]),
 
@@ -108,18 +117,21 @@ class ReportsController extends AdminController
                         Card::make()
                             ->body([
                                 Tpl::make()->tpl('提醒渠道占比（近7日）'),
-                                Chart::make()
-                                    ->config([
-                                        'type' => 'pie',
-                                        'data' => [
-                                            'labels' => '${channel.labels}',
-                                            'datasets' => [[
-                                                'data' => '${channel.data}',
-                                                'backgroundColor' => '${channel.backgroundColor}',
-                                            ]],
-                                        ],
-                                    ])
-                                    ->api("/reports/channel"),
+                                amis()->Service()
+                                    ->api("/reports_channel")
+                                    ->body(
+                                        Chart::make()
+                                            ->config([
+                                                'type' => 'pie',
+                                                'data' => [
+                                                    'labels' => '${channel.labels}',
+                                                    'datasets' => [[
+                                                        'data' => '${channel.data}',
+                                                        'backgroundColor' => '${channel.backgroundColor}',
+                                                    ]],
+                                                ],
+                                            ])
+                                    ),
                             ]),
 
                         // 提醒活跃热力图（占位）
@@ -150,7 +162,7 @@ class ReportsController extends AdminController
                                 ['name' => 'amount', 'label' => '金额'],
                                 ['name' => 'rate', 'label' => '占比'],
                             ])
-                            ->api("/reports/asset-quality"),
+                            ->api("/reports_asset-quality"),
                     ]),
 
                 // 队列分析和逾期漏斗
@@ -170,25 +182,28 @@ class ReportsController extends AdminController
                                         ['name' => 'retention_60', 'label' => '60天'],
                                         ['name' => 'retention_90', 'label' => '90天'],
                                     ])
-                                    ->api("/reports/cohort"),
+                                    ->api("/reports_cohort"),
                             ]),
 
                         // 逾期漏斗
                         Card::make()
                             ->body([
                                 Tpl::make()->tpl('逾期漏斗'),
-                                Chart::make()
-                                    ->config([
-                                        'type' => 'funnel',
-                                        'data' => [
-                                            'labels' => '${funnel.labels}',
-                                            'datasets' => [[
-                                                'data' => '${funnel.data}',
-                                                'backgroundColor' => '${funnel.backgroundColor}',
-                                            ]],
-                                        ],
-                                    ])
-                                    ->api("/reports/funnel"),
+                                amis()->Service()
+                                    ->api("/reports_funnel")
+                                    ->body(
+                                        Chart::make()
+                                            ->config([
+                                                'type' => 'bar',
+                                                'data' => [
+                                                    'labels' => '${funnel.labels}',
+                                                    'datasets' => [[
+                                                        'data' => '${funnel.data}',
+                                                        'backgroundColor' => '${funnel.backgroundColor}',
+                                                    ]],
+                                                ],
+                                            ])
+                                    ),
                             ]),
                     ]),
 
@@ -210,7 +225,7 @@ class ReportsController extends AdminController
                                         ['name' => 'overdue_rate', 'label' => '逾期率'],
                                         ['name' => 'npl', 'label' => 'NPL'],
                                     ])
-                                    ->api("/reports/vintage"),
+                                    ->api("/reports_vintage"),
                             ]),
 
                         // 迁移矩阵（占位）
@@ -278,9 +293,9 @@ class ReportsController extends AdminController
         $data = $service->getAssetQuality();
 
         return $this->response()->success([
+            'items' => $data['par'],
             'assetQuality' => [
                 'total_outstanding' => '在贷余额：￥' . $data['total_outstanding'],
-                'items' => $data['par'],
             ]
         ]);
     }

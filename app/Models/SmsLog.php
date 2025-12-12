@@ -27,4 +27,14 @@ class SmsLog extends Model
         'state',
         'content',
     ];
+
+    public function loan()
+    {
+        return $this->belongsTo(Loan::class);
+    }
+
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class);
+    }
 }
