@@ -50,6 +50,7 @@ class LoanService extends AdminService
         if ($customer = $customerService->query()->where('id_card', $data['customer']['id_card'])->first()) {
             $data['customer_id'] = $customer->id;
         }else{
+            unset($data['customer']['id']);
             $customerService->store($data['customer']);
             $data['customer_id'] = $customerService->currentModel->id;
         }
