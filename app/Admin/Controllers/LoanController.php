@@ -28,12 +28,13 @@ class LoanController extends AdminController
                 ...$this->baseHeaderToolBar()
             ])
             ->columns([
-                amis()->TableColumn('ticket_no', '票号')->copyable(),
-                amis()->TableColumn('customer.name', '客户姓名'),
+                amis()->TableColumn('customer.name', '客户姓名')->fixed('left'),
+                amis()->TableColumn('ticket_no', '票号'),
                 amis()->TableColumn('city', '归属地'),
                 amis()->TableColumn('collaterals', '抵押物')->type('each')->items(
                     amis()->Tag()->label('${name}')->className('my-1')
                 ),
+                amis()->TableColumn('loan_type_text', '类型'),
                 Components::make()->tableNumberColumn('collateral_total_value', '抵押物价值'),
                 Components::make()->tableNumberColumn('amount', '借款金额'),
                 Components::make()->tableNumberColumn('total_interest', '总利息'),
@@ -50,7 +51,7 @@ class LoanController extends AdminController
                     $this->rowEditButton('dialog', 'xl'),
                     $this->rowShowButton(),
                     $this->rowDeleteButton(),
-                ]),
+                ])->width('150px')->fixed('right'),
             ])
             ->filter(
                 amis()->Form()->wrapWithPanel(false)->body([
@@ -82,14 +83,22 @@ class LoanController extends AdminController
                     amis()->TextControl('customer.id_card', '身份证号'),
                     amis()->TextControl('customer.phone', '电话')
                 ]),
-                amis()->TextControl('customer.address', '家庭住址'),
-                amis()->FieldSetControl()->title('共同借款人')->collapsed()->collapsable()->body([
-                    amis()->GroupControl()->body([
-                        amis()->TextControl('co_borrower_snapshot.name', '姓名'),
-                        amis()->TextControl('co_borrower_snapshot.id_card', '身份证号'),
-                        amis()->TextControl('co_borrower_snapshot.phone', '电话')
-                    ]),
-                ])
+                amis()->GroupControl()->body([
+                    amis()->TextControl('customer.type', '来源渠道'),
+                    amis()->TextControl('customer.address', '家庭住址'),
+                ]),
+                amis()->FieldSetControl()->title('共同借款人')->body([
+                    amis()->TableControl('co_borrower_snapshot', false)
+                        ->columnsTogglable(false)
+                        ->columns([
+                            amis()->TextControl('name', '姓名'),
+                            amis()->TextControl('id_card', '身份证号'),
+                            amis()->TextControl('phone', '电话')
+                        ])
+                        ->needConfirm(false)
+                        ->addable()
+                        ->removable(),
+                ]),
             ]),
             amis()->Divider(),
             amis()->FieldSetControl()->title('抵押物')->body([
@@ -97,11 +106,12 @@ class LoanController extends AdminController
                     ->columnsTogglable(false)
                     ->columns([
                         amis()->TextControl('name', '抵押物'),
-                        amis()->SelectControl('type_label', '类型')->options(CollateralType::asSelectArray()),
+                        amis()->SelectControl('type', '类型')->options(CollateralType::asSelectArray()),
                         amis()->TextControl('area', '面积'),
                         amis()->TextControl('certificate_no', '产权证'),
                         amis()->NumberControl('valuation', '估价')->kilobitSeparator()->prefix('￥'),
-                        amis()->NumberControl('value', '房屋价值')->kilobitSeparator()->prefix('￥'),
+                        amis()->TextControl('one_bet', '一押'),
+                        amis()->TextControl('teo_bet', '二押'),
                         amis()->TextControl('note', '备注'),
                     ])
                     ->needConfirm(false)
@@ -110,6 +120,10 @@ class LoanController extends AdminController
             ]),
             amis()->Divider(),
             amis()->FieldSetControl()->title('贷款信息')->collapsable()->body([
+                amis()->ListControl('loan_type', '类型')->options([
+                    1 => '等额本息',
+                    2 => '先息后本'
+                ])->value(1),
                 amis()->GroupControl()->body([
                     amis()->NumberControl('collateral_total_value', '抵押物价值')->kilobitSeparator()->prefix('￥'),
                     amis()->NumberControl('amount', '借款金额')->kilobitSeparator()->prefix('￥'),
@@ -117,7 +131,7 @@ class LoanController extends AdminController
                 ]),
                 amis()->GroupControl()->body([
                     amis()->DateControl('disbursed_at', '借款日期')->value(null),
-                    amis()->NumberControl('term_months', '借款期数')->precision(0),
+                    amis()->NumberControl('term_months', '借款期数')->precision(0)->hiddenOn('${type==3}'),
                     amis()->TextControl('ticket_no', '当票号')
                 ]),
                 amis()->GroupControl()->body([
@@ -128,23 +142,18 @@ class LoanController extends AdminController
                 amis()->TextareaControl('note', '备注'),
             ]),
             amis()->Divider(),
-            amis()->FieldSetControl()->title('沟通记录')->body([
-                amis()->TableControl('communications', false)
-                    ->columns([
-                        amis()->SelectControl('channel', '沟通方式')
-                            ->options(\App\Models\Communication::channelOptions())
-                            ->width(100),
-                        amis()->DatetimeControl('happened_at', '沟通时间')
-                            ->format('YYYY-MM-DD HH:mm:ss')
-                            ->width(150),
-                        amis()->TextareaControl('content', '沟通内容')->width(300),
-                    ])
-                    ->addable()
-                    ->removable()
+            amis()->FieldSetControl()->title('还款计划')->body([
+                amis()->TableControl('repaymentSchedules', false)
                     ->columnsTogglable(false)
+                    ->columns([
+                        amis()->DateControl('due_date', '还款期限'),
+                        amis()->NumberControl('principal', '本金')->precision(2)->value(0),
+                        amis()->NumberControl('interest', '利息')->precision(2)->value(0),
+                    ])
                     ->needConfirm(false)
-                    ->defaultValue([])
-            ])->visible($isEdit)
+                    ->addable()
+                    ->removable(),
+            ]),
         ]);
     }
 

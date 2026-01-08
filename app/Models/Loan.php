@@ -29,6 +29,7 @@ class Loan extends Model
         'profit_amount',
         'total_interest_amount',
         'term_months',
+        'loan_type',
         'rate_month',
         'discount_ratio',
         'month_profit_ratio',
@@ -67,6 +68,7 @@ class Loan extends Model
         'state_label',
         'monthly_payment',
         'total_interest',
+        'loan_type_text'
     ];
 
     public static function stateOptions(): array
@@ -123,5 +125,10 @@ class Loan extends Model
         $amount = (float)$this->amount + $this->total_interest;
 
         return round($amount / $terms, 2);
+    }
+
+    public function getLoanTypeTextAttribute()
+    {
+        return $this->loan_type == 1 ? '等额本息' : '先息后本';
     }
 }

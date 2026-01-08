@@ -20,6 +20,7 @@ class CustomerController extends AdminController
     public function list()
     {
         $crud = $this->baseCRUD()
+            ->bulkActions()
             ->headerToolbar([
                 $this->createButton('dialog', 'xl'),
                 ...$this->baseHeaderToolBar()
@@ -30,6 +31,7 @@ class CustomerController extends AdminController
                 amis()->TableColumn('name', '客户'),
                 amis()->TableColumn('id_card', '身份证号'),
                 amis()->TableColumn('phone', '手机号码'),
+                amis()->TableColumn('type', '渠道'),
                 amis()->TableColumn('address', '联系地址')->ellipsis(),
                 amis()->TableColumn('risk_level_label', '风险等级'),
                 amis()->TableColumn('credit_score', '信用分')->backgroundScale([

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Loan;
+use App\Models\RepaymentSchedule;
 use Illuminate\Support\Str;
 
 /**
@@ -25,47 +26,71 @@ class LoanService extends AdminService
 
     public function saving(&$data, $primaryKey = null)
     {
+        $data['term_months'] = data_get($data, 'term_months', 0);
         if (!$primaryKey) {
             $data['loan_number'] = Str::random();
+        }
 
-            // 创建客户记录
-            $customerService = CustomerService::make();
-            $customerService->store($data['customer']);
-            $data['customer_id'] = $customerService->currentModel->id;
-
-            // 创建抵押物记录
-            data_set($data['collaterals'], '*.customer_id', $data['customer_id']);
-
-            $collateralIds = [];
-            foreach ($data['collaterals'] as $collateral) {
-                $collateralService = CollateralService::make();
-                $collateralService->store($collateral);
-                $collateralIds[] = $collateralService->currentModel->id;
+        if ($data['loan_type'] == 2) {
+            if (!isset($data['repaymentSchedules'])) {
+                admin_abort('先息后本需要填写完整的还款计划');
             }
-
-            // 计算抵押物总价值
-            $totalCollateralValue = array_sum(array_column($data['collaterals'], 'value'));
-            $data['collateral_total_value'] = $totalCollateralValue;
-
-            // 保存抵押物ID数组用于后续关联
-            $this->pendingCollateralIds = $collateralIds;
-
-            // 保存沟通记录数据
-            if (isset($data['communications'])) {
-                $this->pendingCommunications = $data['communications'];
-            }
-
-            $data['admin_user_id'] = $this->adminUser->id;
-
-            // 清理不需要保存的字段
-            unset($data['customer'], $data['collaterals'], $data['communications']);
-        } else {
-            // 编辑模式：处理沟通记录更新
-            if (isset($data['communications'])) {
-                $this->pendingCommunications = $data['communications'];
-                unset($data['communications']);
+            foreach ($data['repaymentSchedules'] as $schedule) {
+                if (!$schedule['due_date'] || $schedule['principal'] === null || $schedule['interest'] === null) {
+                    admin_abort('先息后本需要填写完整的还款计划');
+                }
             }
         }
+        if (!isset($data['customer'])) {
+            admin_abort('客户信息必须填写');
+        }
+
+        // 创建客户记录
+        $customerService = CustomerService::make();
+        if ($customer = $customerService->query()->where('id_card', $data['customer']['id_card'])->first()) {
+            $data['customer_id'] = $customer->id;
+        }else{
+            $customerService->store($data['customer']);
+            $data['customer_id'] = $customerService->currentModel->id;
+        }
+
+        // 创建抵押物记录
+        data_set($data['collaterals'], '*.customer_id', $data['customer_id']);
+
+        $collateralIds = [];
+        foreach ($data['collaterals'] as $collateral) {
+
+            // 创建客户记录
+            $collateralService = CollateralService::make();
+            if (isset($collateral['id'])) {
+                $collateralModel = $collateralService->query()->where('id', $collateral['id'])->first();
+            }else{
+                $collateralModel = $collateralService->getModel();
+            }
+            $collateralModel->fill($collateral);
+            $collateralModel->save();
+
+            $collateralIds[] = $collateralModel->id;
+        }
+
+        // 计算抵押物总价值
+//        $totalCollateralValue = array_sum(array_column($data['collaterals'], 'value'));
+//        $data['collateral_total_value'] = $totalCollateralValue;
+
+        if (!$primaryKey) {
+            // 保存抵押物ID数组用于后续关联
+            $this->pendingCollateralIds = $collateralIds;
+        }
+
+        // 保存沟通记录数据
+        if (isset($data['communications'])) {
+            $this->pendingCommunications = $data['communications'];
+        }
+
+        $data['admin_user_id'] = $this->adminUser->id;
+
+        // 清理不需要保存的字段
+        unset($data['customer'], $data['collaterals'], $data['communications']);
     }
 
     public function saved($model, $isEdit = false)
@@ -99,11 +124,37 @@ class LoanService extends AdminService
 
             $this->pendingCommunications = []; // 清空数组
         }
-
         // 新增贷款时自动生成还款计划
         if (!$isEdit) {
-            $repaymentService = new \App\Services\RepaymentScheduleService();
-            $repaymentService->saveSchedule($model);
+
+            if ($model->loan_type == 1) {
+                $repaymentService = new \App\Services\RepaymentScheduleService();
+                $repaymentService->saveSchedule($model);
+                return;
+            }
+
+
+            $remainingPrincipal = $model->amount;
+            // 批量保存
+            foreach (request()->get('repaymentSchedules') as $index => $scheduleData) {
+                $scheduleData = [
+                    'loan_id' => $model->id,
+                    'period' => $index + 1,
+                    'due_date' => $scheduleData['due_date'],
+                    'principal' => round($scheduleData['principal'], 2),
+                    'interest' => round($scheduleData['interest'], 2),
+                    'amount' => round($scheduleData['principal'] + $scheduleData['interest'], 2),
+                    'remaining_principal' => round(max(0, $remainingPrincipal-$scheduleData['principal']), 2),
+                    'is_paid' => 0,
+                    'paid_at' => null,
+                    'state' => '待还款',
+                    'remark' => null,
+                ];
+                RepaymentSchedule::create($scheduleData);
+            }
         }
+
+
+
     }
 }

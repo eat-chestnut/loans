@@ -25,6 +25,7 @@ class Customer extends Model
         'risk_level',
         'credit_score',
         'co_borrower',
+        'type'
     ];
 
     protected $casts = [
