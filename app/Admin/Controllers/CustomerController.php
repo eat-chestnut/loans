@@ -26,8 +26,8 @@ class CustomerController extends AdminController
                 ...$this->baseHeaderToolBar()
             ])
             ->filterTogglable()
+            ->showIndex()
             ->columns([
-                amis()->TableColumn('id', 'ID'),
                 amis()->TableColumn('name', '客户'),
                 amis()->TableColumn('id_card', '身份证号'),
                 amis()->TableColumn('phone', '手机号码'),

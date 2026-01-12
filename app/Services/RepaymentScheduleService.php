@@ -135,7 +135,6 @@ class RepaymentScheduleService
 
         $schedule->is_paid = true;
         $schedule->paid_at = Carbon::now();
-        $schedule->state = '已还款';
         $schedule->save();
 
         $this->updateLoanPaymentStats($schedule->loan_id);

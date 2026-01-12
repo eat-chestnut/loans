@@ -49,7 +49,6 @@ class LoanController extends AdminController
                 amis()->TableColumn('state_label', '贷款状态'),
                 $this->rowActions([
                     $this->rowEditButton('dialog', 'xl'),
-                    $this->rowShowButton(),
                     $this->rowDeleteButton(),
                 ])->width('150px')->fixed('right'),
             ])

@@ -33,4 +33,9 @@ class CustomerService extends AdminService
             })
             ->toArray();
     }
+
+    public function sortable($query)
+    {
+        $query->orderBy('created_at');
+    }
 }

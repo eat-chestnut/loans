@@ -24,4 +24,9 @@ class RepaymentScheduleAdminService extends AdminService
             $query->whereDate('due_date', '<=', $date);
         });
     }
+
+    public function sortable($query)
+    {
+        $query->orderBy('due_date');
+    }
 }
