@@ -13,65 +13,87 @@ use Illuminate\Support\Collection;
 class RepaymentScheduleService
 {
     /**
-     * 生成还款计划
-     *
-     * @param Loan $loan
+     * 等额本息还款计划
+     * @param float $loanAmount 本金
+     * @param float $monthlyRate 月利率（小数）
+     * @param int   $teamMonths 期数（月）
      * @return Collection
      */
-    public function generateSchedule(Loan $loan): Collection
+    function generateSchedule(Loan $loan)
     {
         $loanAmount = (float)$loan->amount;
         $termMonths = (int)$loan->term_months;
-        $monthlyRate = (float)$loan->rate_month / 100; // 转换为小数
+        $totalInterest = (float)$loan->total_interest;
         $startDate = $loan->disbursed_at ? Carbon::parse($loan->disbursed_at) : Carbon::now();
 
         // 计算月还款额（等额本息）
-        $monthlyPayment = $this->calculateMonthlyPayment($loanAmount, $monthlyRate, $termMonths);
+        $monthlyRate = $this->inferMonthlyRateFromTotalInterest($loanAmount, $totalInterest, $termMonths);
 
-        $schedules = collect();
-        $remainingPrincipal = $loanAmount;
+        // 月供 A
+        if ($monthlyRate <= 0) {
+            $amount = $loanAmount / $termMonths;
+        } else {
+            $pow = pow(1 + $monthlyRate, $termMonths);
+            $amount = $loanAmount * ($monthlyRate * $pow) / ($pow - 1);
+        }
 
+        $amount = round($amount, 2);
+
+        $balance = $loanAmount;
+        $schedule = [];
+
+        $isPaid = 0;
+        $paidAt = null;
         for ($period = 1; $period <= $termMonths; $period++) {
-            // 计算当期利息
-            $interestPayment = $remainingPrincipal * $monthlyRate;
+            $interest = $this->numberFormat($balance * $monthlyRate);
+            $principal = $this->numberFormat($amount - $interest);
 
-            // 计算当期本金
-            $principalPayment = $monthlyPayment - $interestPayment;
-
-            // 更新剩余本金
-            $remainingPrincipal -= $principalPayment;
-
-            // 最后一期处理精度问题
-            if ($period === $termMonths) {
-                $principalPayment += $remainingPrincipal;
-                $remainingPrincipal = 0;
-            }
 
             // 计算还款日期（放款日期 + 期数个月 - 1天）
             $dueDate = $startDate->copy()->addMonths($period)->subDay();
+            // 最后一期修正：把剩余本金一次性还清，避免误差
+            if ($period === $termMonths) {
+                $principal = $this->numberFormat($balance);
+                $lastAmount = $this->numberFormat($principal + $interest);
+                $balance = 0.0;
 
-            // 判断是否为历史还款（已过期）
-            $isPaid = 0;
-            $paidAt = null;
+                $schedule[] = [
+                    'loan_id' => $loan->id,
+                    'period' => $period,
+                    'due_date' => $dueDate,
+                    'amount' => $lastAmount,
+                    'principal' => $principal,
+                    'interest' => $interest,
+                    'remaining_principal' => $balance,
+                    'is_paid' => $isPaid,
+                    'paid_at' => $paidAt,
+                    'remark' => null,
+                ];
+                break;
+            }
 
-            $scheduleData = [
+            $balance = round($balance - $principal, 2);
+
+            $schedule[] = [
                 'loan_id' => $loan->id,
                 'period' => $period,
-                'due_date' => $dueDate->format('Y-m-d'),
-                'amount' => round($monthlyPayment, 2),
-                'principal' => round($principalPayment, 2),
-                'interest' => round($interestPayment, 2),
-                'remaining_principal' => round(max(0, $remainingPrincipal), 2),
+                'due_date' => $dueDate,
+                'amount' => $amount,
+                'principal' => $principal,
+                'interest' => $interest,
+                'remaining_principal' => $balance,
                 'is_paid' => $isPaid,
                 'paid_at' => $paidAt,
-                'state' => $isPaid ? '已还款' : '待还款',
                 'remark' => null,
             ];
-
-            $schedules->push($scheduleData);
         }
 
-        return $schedules;
+        return collect($schedule);
+    }
+
+
+    function numberFormat($x): float {
+        return (float) number_format((float)$x, 2, '.', '');
     }
 
     /**
@@ -80,41 +102,76 @@ class RepaymentScheduleService
      * @param Loan $loan
      * @return Collection
      */
-    public function saveSchedule(Loan $loan): Collection
+    public function saveSchedule(Loan $loan, $schedules=[]): Collection
     {
-        // 删除现有还款计划
-        RepaymentSchedule::where('loan_id', $loan->id)->delete();
-
-        // 生成新的还款计划
-        $schedules = $this->generateSchedule($loan);
+        if (blank($schedules)) {
+            // 生成新的还款计划
+            $schedules = $this->generateSchedule($loan);
+        }
 
         // 批量保存
         foreach ($schedules as $scheduleData) {
-            RepaymentSchedule::create($scheduleData);
+            $schedule = RepaymentSchedule::where('loan_id', $loan->id)->where('period', $scheduleData['period'])->first();
+            if ($schedule) {
+                $schedule->amount = $scheduleData['amount'];
+                $schedule->principal = $scheduleData['principal'];
+                $schedule->interest = $scheduleData['interest'];
+                $schedule->remaining_principal = $scheduleData['remaining_principal'];
+            }else{
+                $schedule = new RepaymentSchedule();
+                $schedule->fill($scheduleData);
+            }
+            $schedule->save();
         }
+        // 删除现有还款计划
+        RepaymentSchedule::where('loan_id', $loan->id)->where('period', '>', $scheduleData['period'])->delete();
 
         return $schedules;
     }
 
     /**
-     * 计算月还款额（等额本息公式）
+     * 从 本金P、总利息I、期数n（月） 反推 等额本息月利率 r
      *
-     * @param float $loanAmount 贷款本金
-     * @param float $monthlyRate 月利率
-     * @param int $termMonths 期数
-     * @return float
+     * @return float r（月利率，小数，如 0.015 表示 1.5%/月）
      */
-    private function calculateMonthlyPayment(float $loanAmount, float $monthlyRate, int $termMonths): float
+    function inferMonthlyRateFromTotalInterest(float $P, float $I, int $n): float
     {
-        if ($monthlyRate == 0) {
-            return $loanAmount / $termMonths;
+        if ($P <= 0 || $n <= 0) return 0.0;
+
+        // 每月固定还款额
+        $A = ($P + $I) / $n;
+
+        // 若总利息为0：月利率=0
+        if (abs($I) < 1e-12) return 0.0;
+
+        // f(r) = A*(1-(1+r)^-n)/r - P
+        $f = function (float $r) use ($A, $P, $n): float {
+            if ($r <= 0) {
+                // r->0 时极限：PV = A*n
+                return $A * $n - $P;
+            }
+            $pv = $A * (1 - pow(1 + $r, -$n)) / $r;
+            return $pv - $P;
+        };
+
+        // 二分法：r>=0。f(0)=I>0；r很大时 f(r)<0
+        $lo = 0.0;
+        $hi = 1.0; // 先给 100%/月 上限
+        while ($f($hi) > 0) {       // PV还大于P，说明r还不够大
+            $hi *= 2;
+            if ($hi > 1000) break; // 极端保护
         }
 
-        // 等额本息公式：月还款额 = 本金 × 月利率 × (1+月利率)^期数 / ((1+月利率)^期数 - 1)
-        $pow = pow(1 + $monthlyRate, $termMonths);
-        $monthlyPayment = $loanAmount * $monthlyRate * $pow / ($pow - 1);
+        for ($i = 0; $i < 100; $i++) {
+            $mid = ($lo + $hi) / 2;
+            if ($f($mid) > 0) {
+                $lo = $mid;
+            } else {
+                $hi = $mid;
+            }
+        }
 
-        return $monthlyPayment;
+        return ($lo + $hi) / 2;
     }
 
     /**

@@ -2,6 +2,7 @@
 
 use App\Admin\Controllers\CollateralController;
 use App\Admin\Controllers\CustomerController;
+use App\Admin\Controllers\EndLoanController;
 use App\Admin\Controllers\LoanController;
 use App\Admin\Controllers\RepaymentScheduleController;
 use Illuminate\Routing\Router;
@@ -34,9 +35,12 @@ Route::group([
     $router->resource('customers', CustomerController::class);
     $router->resource('collaterals', CollateralController::class);
     $router->resource('loans', LoanController::class);
+    $router->resource('end_loans', EndLoanController::class);
+    $router->put('loans/{id}/end', [LoanController::class, 'end']);
     $router->resource('repayment-schedules', RepaymentScheduleController::class);
     $router->resource('overdue', \App\Admin\Controllers\OverdueController::class);
     $router->resource('wechat', \App\Admin\Controllers\WechatController::class);
+    $router->get('calendars', [\App\Admin\Controllers\CalendarController::class, 'index']);
 
     $router->get('collaterals_options/{collateral_id}', [CollateralController::class, 'options']);
     $router->get('customer_options', [CustomerController::class, 'options']);

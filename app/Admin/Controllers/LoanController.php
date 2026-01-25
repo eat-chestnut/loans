@@ -2,13 +2,14 @@
 
 namespace App\Admin\Controllers;
 
-use App\Admin\Supports\Components;
 use App\Enums\CollateralCityType;
 use App\Enums\CollateralType;
 use App\Models\Loan;
+use App\Models\RepaymentSchedule;
 use App\Services\CollateralService;
 use App\Services\CustomerService;
 use App\Services\LoanService;
+use Illuminate\Http\Request;
 
 /**
  * 放款表
@@ -23,47 +24,54 @@ class LoanController extends AdminController
     {
         $crud = $this->baseCRUD()
             ->filterTogglable()
+            ->bulkActions([])
             ->headerToolbar([
                 $this->createButton('dialog', 'lg'),
                 ...$this->baseHeaderToolBar()
             ])
             ->columns([
                 amis()->TableColumn('customer.name', '客户姓名')->fixed('left'),
-                amis()->TableColumn('ticket_no', '票号'),
-                amis()->TableColumn('city', '归属地'),
-                amis()->TableColumn('collaterals', '抵押物')->type('each')->items(
-                    amis()->Tag()->label('${name}')->className('my-1')
-                ),
                 amis()->TableColumn('loan_type_text', '类型'),
-                Components::make()->tableNumberColumn('collateral_total_value', '抵押物价值'),
-                Components::make()->tableNumberColumn('amount', '借款金额'),
-                Components::make()->tableNumberColumn('total_interest', '总利息'),
-                amis()->TableColumn('discount_ratio', '折当率(%)'),
-                amis()->TableColumn('month_profit_ratio', '月综合利润(%)'),
-                amis()->TableColumn('term_months', '期数(个月)'),
-                Components::make()->tableNumberColumn('paid_amount', '已还金额'),
-                Components::make()->tableNumberColumn('profit_amount', '盈利金额'),
+                amis()->TableColumn('info1', '贷款信息')->type('tpl')->tpl('
+                    <span>借款金额: ${amount}</span><br/>
+                    <span>总利息: ${total_interest}</span><br/>
+                    <span>期数(月): ${term_months}</span>
+                '),
+                amis()->TableColumn('info', '综合信息')->type('tpl')->tpl('
+                    <span>抵押物价值: ${collateral_total_value}</span><br/>
+                    <span>折当率: ${discount_ratio}%</span><br/>
+                    <span>月综合利润: ${month_profit_ratio}%</span>
+                '),
+                amis()->TableColumn('info2', '还款信息')->type('tpl')->tpl('
+                    <span>已还本金: ${paid_amount}</span><br/>
+                    <span>已还利息: ${profit_amount}</span><br/>
+                    <span>当前期数: ${now_period}</span>
+                '),
+                amis()->TableColumn('info3', '综合信息')->type('tpl')->tpl('
+                    <span>借款时间: ${disbursed_at}</span><br/>
+                    <span>预计结清时间: ${expected_date}</span><br/>
+                    <span>实际结清时间: ${closed_at}</span>
+                '),
                 amis()->TableColumn('overdue_count', '逾期次数'),
-                amis()->TableColumn('disbursed_at', '借款时间')->type('date'),
-                amis()->TableColumn('closed_at', '结清时间')->type('date'),
                 amis()->TableColumn('state_label', '贷款状态'),
                 $this->rowActions([
+                    $this->endButton(),
                     $this->rowEditButton('dialog', 'xl'),
-                    $this->rowDeleteButton(),
                 ])->width('150px')->fixed('right'),
             ])
             ->filter(
                 amis()->Form()->wrapWithPanel(false)->body([
-                    amis()->TextControl('loan_number', '当票号')->clearable(),
-                    amis()->TextControl('ticket_no', '票号')->clearable(),
                     amis()->SelectControl('customer_id', '关联客户')
                         ->clearable()
+                        ->searchable()
                         ->options($this->customerOptions()),
                     amis()->SelectControl('collateral_id', '关联抵押物')
                         ->clearable()
+                        ->searchable()
                         ->options($this->collateralOptions()),
                     amis()->SelectControl('state', '贷款状态')
                         ->clearable()
+                        ->searchable()
                         ->options($this->loanStateOptions()),
                     amis()->DateControl('disbursed_at', '借款日期')->clearable(),
                     amis()->TextControl('note', '备注关键字')->clearable(),
@@ -71,6 +79,27 @@ class LoanController extends AdminController
             );
 
         return $this->baseList($crud);
+    }
+
+    public function endButton()
+    {
+        $noPayFreightForm = amis()->Form()->title()->body([
+            amis()->DateControl('paid_at', '还款日期')->required(),
+            amis()->NumberControl('remaining_principal', '还款本金')->required(),
+            amis()->NumberControl('remaining_interest', '还款利息'),
+        ])->api('put:/loans/${id}/end')->onEvent([
+            'submitSucc' => [
+                'actions' => [
+                    [
+                        'componentId' => '11',
+                        'actionType' => 'reload',
+                    ],
+                ],
+            ],
+        ]);
+        return amis()->DialogAction()->dialog(
+            amis()->Dialog()->title(' [${customer.name}] 提前结清')->body($noPayFreightForm)->size('md')
+        )->label('提前结清')->level('link')->className('ml-2');
     }
 
     public function form($isEdit = false)
@@ -108,10 +137,6 @@ class LoanController extends AdminController
                         amis()->SelectControl('type', '类型')->options(CollateralType::asSelectArray()),
                         amis()->TextControl('area', '面积'),
                         amis()->TextControl('certificate_no', '产权证'),
-                        amis()->NumberControl('valuation', '估价')->kilobitSeparator()->prefix('￥'),
-                        amis()->TextControl('one_bet', '一押'),
-                        amis()->TextControl('teo_bet', '二押'),
-                        amis()->TextControl('note', '备注'),
                     ])
                     ->needConfirm(false)
                     ->addable()
@@ -129,7 +154,7 @@ class LoanController extends AdminController
                     amis()->NumberControl('total_interest_amount', '总利息')->kilobitSeparator()->prefix('￥')
                 ]),
                 amis()->GroupControl()->body([
-                    amis()->DateControl('disbursed_at', '借款日期')->value(null),
+                    amis()->DateControl('disbursed_at', '借款日期')->format('YYYY-MM-DD')->value(null)->required(),
                     amis()->NumberControl('term_months', '借款期数')->precision(0)->hiddenOn('${type==3}'),
                     amis()->TextControl('ticket_no', '当票号')
                 ]),
@@ -142,7 +167,7 @@ class LoanController extends AdminController
             ]),
             amis()->Divider(),
             amis()->FieldSetControl()->title('还款计划')->body([
-                amis()->TableControl('repaymentSchedules', false)
+                amis()->TableControl('repayment_schedules', false)
                     ->columnsTogglable(false)
                     ->columns([
                         amis()->DateControl('due_date', '还款期限'),
@@ -152,7 +177,7 @@ class LoanController extends AdminController
                     ->needConfirm(false)
                     ->addable()
                     ->removable(),
-            ]),
+            ])->hidden($isEdit),
         ]);
     }
 
@@ -273,5 +298,30 @@ class LoanController extends AdminController
             ->map(fn($label, $value) => ['label' => $label, 'value' => (int)$value])
             ->values()
             ->toArray();
+    }
+
+    public function end($id, Request $request)
+    {
+        $loan = $this->service->query()->find($id);
+        $repaymentSchedule = RepaymentSchedule::query()->where('loan_id', $id)->where('is_paid', 0)->orderBy('due_date')->first();
+        if (!$repaymentSchedule) {
+            return admin_abort('没找到待还款计划');
+        }
+
+        $repaymentSchedule->principal = $request->remaining_principal;
+        $repaymentSchedule->interest = $request->remaining_interest;
+        $repaymentSchedule->remaining_principal = 0;
+        $repaymentSchedule->amount = $repaymentSchedule->principal + $repaymentSchedule->interest;
+        $repaymentSchedule->is_paid = 1;
+        $repaymentSchedule->paid_at = date('Y-m-d 00:00:00', $request->paid_at);
+        $repaymentSchedule->save();
+        RepaymentSchedule::query()->where('loan_id', $id)->where('is_paid', 0)->delete();
+
+        $loan->paid_amount += $repaymentSchedule->principal;
+        $loan->profit_amount += $repaymentSchedule->interest;
+        $loan->state = Loan::STATE_CLOSED;
+        $loan->closed_at = $repaymentSchedule->paid_at;
+        $loan->save();
+        return $this->response()->successMessage('提前还款成功');
     }
 }

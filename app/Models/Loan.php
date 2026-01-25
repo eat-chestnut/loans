@@ -59,16 +59,15 @@ class Loan extends Model
         'total_interest_amount' => 'float',
         'discount_ratio'    => 'float',
         'month_profit_ratio'=> 'float',
-        'start_date'        => 'date',
-        'disbursed_at'      => 'date',
-        'closed_at'         => 'date',
     ];
 
     protected $appends = [
         'state_label',
         'monthly_payment',
         'total_interest',
-        'loan_type_text'
+        'loan_type_text',
+        'remaining_principal',
+        'remaining_interest'
     ];
 
     public static function stateOptions(): array
@@ -130,5 +129,15 @@ class Loan extends Model
     public function getLoanTypeTextAttribute()
     {
         return $this->loan_type == 1 ? '等额本息' : '先息后本';
+    }
+
+    public function getRemainingPrincipalAttribute()
+    {
+        return $this->amount - $this->paid_amount;
+    }
+
+    public function getRemainingInterestAttribute()
+    {
+        return $this->total_interest - $this->profit_amount;
     }
 }

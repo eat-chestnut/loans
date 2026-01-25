@@ -62,9 +62,8 @@ class RepaymentScheduleController extends AdminController
             ])
             ->defaultParams($params)
             ->columns([
-                amis()->TableColumn('loan.ticket_no', '当票号'), // todo 点击打开放款详情
                 amis()->TableColumn('loan.customer.name', '客户姓名'),
-                amis()->TableColumn('period', '期数'),
+                amis()->TableColumn('period', '期数')->type('tpl')->tpl('${period} / ${loan.term_months}'),
                 amis()->TableColumn('due_date', '还款期限')->type('date'),
                 Components::make()->tableNumberColumn('amount', '应还金额'),
                 Components::make()->tableNumberColumn('principal', '本金'),
@@ -91,16 +90,8 @@ class RepaymentScheduleController extends AdminController
             ])
             ->filter(
                 amis()->Form()->wrapWithPanel(false)->body([
-                    amis()->TextControl('loan.loan_number', '贷款编号')->clearable(),
                     amis()->TextControl('loan.customer.name', '客户姓名')->clearable(),
-                    amis()->SelectControl('is_paid', '还款状态')
-                        ->options([
-                            ['label' => '全部', 'value' => ''],
-                            ['label' => '已还款', 'value' => 1],
-                            ['label' => '待还款', 'value' => 0],
-                        ])
-                        ->clearable(),
-                    amis()->DateRangeControl('due_date', '还款日期')->clearable(),
+                    amis()->HiddenControl('is_paid')
                 ])
             );
     }

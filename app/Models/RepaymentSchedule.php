@@ -36,8 +36,6 @@ class RepaymentSchedule extends Model
         'remaining_principal' => 'float',
         'is_paid'             => 'boolean',
         'is_overdue'          => 'boolean',
-        'due_date'            => 'date',
-        'paid_at'             => 'datetime',
         'reminder_sent_at'    => 'datetime',
         'reminder_times'      => 'integer',
         'wecom_reminder_sent_at' => 'datetime',

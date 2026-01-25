@@ -16,17 +16,18 @@ class DashboardController extends AdminController
     {
         $customCount = CustomerService::make()->query()->count();
         $loanAmount = LoanService::make()->query()->sum('amount');
-        $loanCloseCount = LoanService::make()->query()->where('state', Loan::STATE_CLOSED)->count();
-        $loanCloseAmount = LoanService::make()->query()->where('state', Loan::STATE_CLOSED)->sum('amount');
-        $loanActivityCount = LoanService::make()->query()->where('state', 1)->count();
-        $customerActivityCount = LoanService::make()->query()->where('state', 1)->pluck('customer_id')->unique()->count();
-        $loanActivityAmount = LoanService::make()->query()->where('state', 1)->sum('amount');
+        $loanCloseCount = LoanService::make()->query()->whereIn('state', [Loan::STATE_CLOSED, Loan::STATE_COMPLETED])->count();
+        $loanCloseAmount = LoanService::make()->query()->whereIn('state', [Loan::STATE_CLOSED, Loan::STATE_COMPLETED])->sum('amount');
+        $loanCloseProfitAmount = LoanService::make()->query()->whereIn('state', [Loan::STATE_CLOSED, Loan::STATE_COMPLETED])->sum('profit_amount');
+        $loanActivityCount = LoanService::make()->query()->where('state', Loan::STATE_NEW)->count();
+        $customerActivityCount = LoanService::make()->query()->where('state', Loan::STATE_NEW)->pluck('customer_id')->unique()->count();
+        $loanActivityAmount = LoanService::make()->query()->where('state', Loan::STATE_NEW)->sum('amount');
         $loanCount = LoanService::make()->query()->count();
 
         $loanPaidAmount = LoanService::make()->query()->sum('paid_amount');
         $loanProfitAmount = LoanService::make()->query()->sum('profit_amount');
 
-        $dashboard = Page::make()
+        $dashboard = $this->basePage()
             ->data([
                 'items' => [
                     [
@@ -51,34 +52,40 @@ class DashboardController extends AdminController
                     ],
                     [
                         'title' => '放款总额',
-                        'value' => number_format($loanAmount, 2,)
+                        'value' => human_amount_cn($loanAmount)
                     ],
                     [
                         'title' => '在贷金额',
-                        'value' => number_format($loanActivityAmount, 2)
+                        'value' => human_amount_cn($loanActivityAmount)
                     ],
                     [
                         'title' => '完贷金额',
-                        'value' => number_format($loanCloseAmount, 2)
+                        'value' => human_amount_cn($loanCloseAmount)
                     ],
                     [
                         'title' => '累计回收本金',
-                        'value' => number_format($loanPaidAmount, 2)
+                        'value' => human_amount_cn($loanPaidAmount)
                     ],
                     [
-                        'title' => '累计盈利',
-                        'value' => number_format($loanProfitAmount, 2)
+                        'title' => '累计收息',
+                        'value' => human_amount_cn($loanProfitAmount)
+                    ],
+                    [
+                        'title' => '实际收支',
+                        'value' => human_amount_cn($loanPaidAmount+$loanProfitAmount-$loanAmount)
+                    ],
+                    [
+                        'title' => '完贷收息',
+                        'value' => human_amount_cn($loanCloseProfitAmount)
                     ]
                 ]
             ])
             ->body([
-                amis()->Wrapper()->body([
-                    amis()->Cards()->source('${items}')->card(
-                        amis()->Card()->header([
-                            'title' => '${title}',
-                        ])->body('${value}')
-                    ),
-                ])
+                amis()->Cards()->source('${items}')->card(
+                    amis()->Card()->header([
+                        'title' => '${title}',
+                    ])->body('${value}')
+                ),
             ]);
 
         return $this->response()->success($dashboard);

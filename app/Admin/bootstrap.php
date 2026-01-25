@@ -1,5 +1,6 @@
 <?php
 
+use Slowlyo\OwlAdmin\Admin;
 use Slowlyo\OwlAdmin\Support\Cores\AdminPipeline;
 
 AdminPipeline::through(

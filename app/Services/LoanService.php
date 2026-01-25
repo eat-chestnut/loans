@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\Loan;
 use App\Models\RepaymentSchedule;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 /**
@@ -21,7 +23,33 @@ class LoanService extends AdminService
 
     public function addRelations($query, string $scene = 'list')
     {
-        $query->with(['customer', 'collaterals', 'communications']);
+        $query->with(['customer', 'collaterals', 'communications', 'repaymentSchedules']);
+    }
+
+    public function searchable($query)
+    {
+        parent::searchable($query);
+        $params = $this->request->all();
+        $query->when(isset($params['is_end']), function ($query){
+            $query->whereIn('state', [Loan::STATE_CLOSED, Loan::STATE_COMPLETED]);
+        });
+    }
+
+    public function formatRows(array $rows)
+    {
+        foreach ($rows as &$row) {
+            $row = $row->toArray();
+            $row['amount'] = formatNumber($row['amount']);
+            $row['total_interest'] = formatNumber($row['total_interest']);
+            $row['collateral_total_value'] = formatNumber($row['collateral_total_value']);
+            $row['paid_amount'] = formatNumber($row['paid_amount']);
+            $row['profit_amount'] = formatNumber($row['profit_amount']);
+            $row['now_period'] = $row['state'] == Loan::STATE_CLOSED ? '-' : (collect($row['repayment_schedules'])->filter(function ($repaymentSchedule) {
+                return filled($repaymentSchedule) && $repaymentSchedule['is_paid'] == 0;
+            })->min('period') ?? '-');
+            $row['expected_date'] = Carbon::parse($row['disbursed_at'])->addMonths($row['term_months'])->toDateString();
+        }
+        return $rows;
     }
 
     public function saving(&$data, $primaryKey = null)
@@ -32,10 +60,10 @@ class LoanService extends AdminService
         }
 
         if ($data['loan_type'] == 2) {
-            if (!isset($data['repaymentSchedules'])) {
+            if (!isset($data['repayment_schedules'])) {
                 admin_abort('先息后本需要填写完整的还款计划');
             }
-            foreach ($data['repaymentSchedules'] as $schedule) {
+            foreach ($data['repayment_schedules'] as $schedule) {
                 if (!$schedule['due_date'] || $schedule['principal'] === null || $schedule['interest'] === null) {
                     admin_abort('先息后本需要填写完整的还款计划');
                 }
@@ -73,10 +101,6 @@ class LoanService extends AdminService
 
             $collateralIds[] = $collateralModel->id;
         }
-
-        // 计算抵押物总价值
-//        $totalCollateralValue = array_sum(array_column($data['collaterals'], 'value'));
-//        $data['collateral_total_value'] = $totalCollateralValue;
 
         if (!$primaryKey) {
             // 保存抵押物ID数组用于后续关联
@@ -125,37 +149,37 @@ class LoanService extends AdminService
 
             $this->pendingCommunications = []; // 清空数组
         }
-        // 新增贷款时自动生成还款计划
-        if (!$isEdit) {
 
-            if ($model->loan_type == 1) {
-                $repaymentService = new \App\Services\RepaymentScheduleService();
-                $repaymentService->saveSchedule($model);
-                return;
-            }
-
-
+        $schedules = [];
+        if ($model->loan_type == 2) {
             $remainingPrincipal = $model->amount;
             // 批量保存
-            foreach (request()->get('repaymentSchedules') as $index => $scheduleData) {
-                $scheduleData = [
+            foreach (request()->get('repayment_schedules') as $index => $scheduleData) {
+                $remainingPrincipal -= $scheduleData['principal'];
+                $schedules[] = [
                     'loan_id' => $model->id,
                     'period' => $index + 1,
                     'due_date' => $scheduleData['due_date'],
                     'principal' => round($scheduleData['principal'], 2),
                     'interest' => round($scheduleData['interest'], 2),
                     'amount' => round($scheduleData['principal'] + $scheduleData['interest'], 2),
-                    'remaining_principal' => round(max(0, $remainingPrincipal-$scheduleData['principal']), 2),
+                    'remaining_principal' => round(max(0, $remainingPrincipal), 2),
                     'is_paid' => 0,
                     'paid_at' => null,
                     'state' => '待还款',
                     'remark' => null,
                 ];
-                RepaymentSchedule::create($scheduleData);
             }
         }
+        $repaymentService = new \App\Services\RepaymentScheduleService();
+        $repaymentService->saveSchedule($model, collect($schedules));
 
-
-
+        $model->paid_amount = RepaymentSchedule::query()->where('loan_id', $model->id)->where('is_paid', 1)->sum('principal');
+        $model->profit_amount = RepaymentSchedule::query()->where('loan_id', $model->id)->where('is_paid', 1)->sum('interest');
+        if (RepaymentSchedule::query()->where('loan_id', $model->id)->where('is_paid', 0)->count() == 0) {
+            $model->state = RepaymentSchedule::query()->where('loan_id', $model->id)->where('is_paid', 1) < $model->term_months ? Loan::STATE_COMPLETED :  Loan::STATE_CLOSED;
+            $model->closed_at = RepaymentSchedule::query()->where('loan_id', $model->id)->where('is_paid', 1)->max('paid_at');
+        }
+        $model->save();
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\RepaymentSchedule;
+use Illuminate\Database\Eloquent\Builder;
 use Slowlyo\OwlAdmin\Services\AdminService;
 
 /**
@@ -19,10 +20,18 @@ class RepaymentScheduleAdminService extends AdminService
 
     public function searchable($query)
     {
-        parent::searchable($query);
-        $query->when($this->request->get('max_due_date'), function ($query, $date) {
+        $params = $this->request->all();
+        $query->when(isset($params['is_paid']), function ($query) use ($params) {
+            $query->where('is_paid', $params['is_paid']);
+        })->when(data_get($params, 'due_date'), function ($query, $date) {
             $query->whereDate('due_date', '<=', $date);
+        })->when(data_get($params, 'loan.customer.name'), function (Builder $query, $customerName) {
+            $query->whereHas('loan.customer', function (Builder $query) use ($customerName) {
+                $query->where('name', 'like', '%' . $customerName . '%');
+            });
         });
+
+
     }
 
     public function sortable($query)

@@ -2,7 +2,7 @@
 
 return [
     // 应用名称
-    'name'           => env('ADMIN_APP_NAME', 'Owl Admin'),
+    'name'           => env('ADMIN_APP_NAME', '贷后管理'),
 
     // 应用 logo
     'logo'           => env('ADMIN_LOGO', '/admin-assets/logo.png'),
@@ -80,7 +80,7 @@ return [
 
     'layout' => [
         // 浏览器标题, 功能名称使用 %title% 代替
-        'title'              => env('ADMIN_SITE_TITLE', '%title% | OwlAdmin'),
+        'title'              => env('ADMIN_SITE_TITLE', '%title% | 融通典当'),
         'header'             => [
             // 是否显示 [刷新] 按钮
             'refresh'       => env('ADMIN_HEADER_REFRESH', true),

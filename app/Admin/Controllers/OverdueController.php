@@ -22,10 +22,9 @@ class OverdueController extends AdminController
                 ...$this->baseHeaderToolBar()
             ])
             ->columns([
-                amis()->TableColumn('loan.ticket_no', '当票号')->copyable(),
                 amis()->TableColumn('loan.customer.name', '客户姓名'),
                 amis()->TableColumn('loan.customer.phone', '联系电话'),
-                amis()->TableColumn('period', '期数'),
+                amis()->TableColumn('period', '期数')->type('tpl')->tpl('${period} / ${loan.term_months}'),
                 amis()->TableColumn('due_date', '应还日期')->type('date'),
                 amis()->TableColumn('over_due_day', '逾期天数'),
                 Components::make()->tableNumberColumn('amount', '应还金额'),
